@@ -69,7 +69,7 @@ Data is still local to a browser profile and origin. It is not synchronized acro
 
 The repository includes a GitHub Actions workflow at `.github/workflows/locicanvas-pages.yml`. It tests, builds, and deploys LociCanvas when relevant changes reach `main`, and it can also be run manually from the Actions tab.
 
-Before its first successful deployment, open **Repository Settings → Pages → Build and deployment** and set **Source** to **GitHub Actions**. Then review the LociCanvas Pages workflow in the Actions tab. The project-site base path is configured as `/Full_Stack2/`, because LociCanvas lives inside the larger repository.
+Before its first successful deployment, open **Repository Settings → Pages → Build and deployment** and set **Source** to **GitHub Actions**. Then review the LociCanvas Pages workflow in the Actions tab. The project-site base path is configured as `/LociCanvas/`, because this standalone repository is hosted as a GitHub Pages project site.
 
 Expected site URL: https://shreyasgautam01.github.io/LociCanvas/
 
