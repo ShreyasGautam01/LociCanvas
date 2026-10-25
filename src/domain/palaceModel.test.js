@@ -168,7 +168,7 @@ test('local storage size estimation is conservative and oversized imports are re
   }];
   assert.equal(canPersistPalacesLocally(oversized), false);
   assert.throws(
-    () => parsePalaceStorage(JSON.stringify(oversized)),
+    () => parsePalaceStorage(JSON.stringify(oversized), { enforceLocalLimit: true }),
     /too large for reliable browser storage/i,
   );
 });
