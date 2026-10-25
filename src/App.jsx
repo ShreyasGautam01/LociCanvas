@@ -158,11 +158,13 @@ const Marker = ({ item, onClick, isEditMode, onDelete, onMove }) => {
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       whileHover={{ scale: 1.2, zIndex: 100 }}
+      whileFocus={{ outline: '3px solid #ffffff', outlineOffset: 4 }}
       role="button"
       tabIndex={0}
       aria-label={`${isGateway ? 'Gateway' : 'Memory'}: ${item.title || 'Untitled'}`}
       style={{ position: 'absolute', top: `${item.y}%`, left: `${item.x}%`, transform: 'translate(-50%, -50%)', cursor: isEditMode ? 'grab' : 'pointer', touchAction: isEditMode ? 'none' : 'auto', zIndex: 10 }}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           event.stopPropagation();
