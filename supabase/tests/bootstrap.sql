@@ -1,0 +1,28 @@
+-- Lightweight test-only stand-in for the Supabase Auth objects used by the migration.
+-- The production schema and policies are exercised against a real PostgreSQL service.
+DO $roles$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
+    CREATE ROLE anon NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'authenticated') THEN
+    CREATE ROLE authenticated NOLOGIN;
+  END IF;
+END;
+$roles$;
+
+CREATE SCHEMA auth;
+CREATE TABLE auth.users (
+  id uuid PRIMARY KEY
+);
+
+CREATE FUNCTION auth.uid()
+RETURNS uuid
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT nullif(pg_catalog.current_setting('request.jwt.claim.sub', true), '')::uuid
+$$;
+
+GRANT USAGE ON SCHEMA auth TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated;

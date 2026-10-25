@@ -1,0 +1,81 @@
+name: LociCanvas CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Test, lint, and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run domain tests
+        run: npm test
+
+      - name: Check lint
+        run: npm run lint
+
+      - name: Build production bundle
+        run: npm run build
+
+  database:
+    name: Validate database schema and RLS
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: locicanvas
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d locicanvas"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Prepare isolated Auth fixture
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/locicanvas
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/bootstrap.sql
+
+      - name: Apply database migration
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/locicanvas
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261012000000_create_locicanvas_schema.sql
+
+      - name: Test database constraints, RLS, and gateway cleanup
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/locicanvas
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/schema_validation.sql
