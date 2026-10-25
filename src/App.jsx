@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { createStableId, isValidHttpsUrl, parsePalaceStorage, pointerToCanvasPercent, moveMarkerInPalaces, serializePalaceStorage } from './domain/palaceModel.js';
+import { createStableId, isValidHttpsUrl, parsePalaceStorage, pointerToCanvasPercent, moveMarkerInPalaces, serializePalaceStorage, searchPalaces } from './domain/palaceModel.js';
 import {
   Box,
   Typography,
@@ -33,6 +33,7 @@ import {
   FormControl,
   InputLabel,
   Stack,
+  Chip,
   alpha,
 } from '@mui/material';
 import {
@@ -48,6 +49,8 @@ import {
   Settings as SettingsIcon,
   Download as DownloadIcon,
   Upload as UploadIcon,
+  Search as SearchIcon,
+  CloudOff as CloudOffIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -86,6 +89,15 @@ const theme = createTheme({
 // --- CONSTANTS ---
 const STORAGE_KEY = 'locicanvas_v2_data';
 const RECOVERY_KEY = 'locicanvas_v2_data_recovery';
+const ONBOARDING_KEY = 'locicanvas_onboarding_dismissed_v1';
+
+function shouldShowWelcome() {
+  try {
+    return localStorage.getItem(ONBOARDING_KEY) !== 'dismissed';
+  } catch {
+    return true;
+  }
+}
 
 function loadSavedPalaces() {
   try {
@@ -146,7 +158,17 @@ const Marker = ({ item, onClick, isEditMode, onDelete, onMove }) => {
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       whileHover={{ scale: 1.2, zIndex: 100 }}
+      role="button"
+      tabIndex={0}
+      aria-label={`${isGateway ? 'Gateway' : 'Memory'}: ${item.title || 'Untitled'}`}
       style={{ position: 'absolute', top: `${item.y}%`, left: `${item.x}%`, transform: 'translate(-50%, -50%)', cursor: isEditMode ? 'grab' : 'pointer', touchAction: isEditMode ? 'none' : 'auto', zIndex: 10 }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          event.stopPropagation();
+          onClick(item);
+        }
+      }}
       onPointerDown={(event) => {
         if (!isEditMode || event.button !== 0 || event.target.closest('button')) return;
         event.stopPropagation();
@@ -219,6 +241,10 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(() => shouldShowWelcome());
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchResults = useMemo(() => searchPalaces(palaces, searchQuery), [palaces, searchQuery]);
   const [revealState, setRevealState] = useState({ palaceId: null, level: 0 });
   const revealLevel = revealState.palaceId === currentLevelId ? revealState.level : 0;
 
@@ -431,6 +457,47 @@ export default function App() {
     setSidebarOpen(false);
   };
 
+  const dismissWelcome = () => {
+    try {
+      localStorage.setItem(ONBOARDING_KEY, 'dismissed');
+    } catch {
+      // The welcome can still be dismissed for this session if storage is unavailable.
+    }
+    setWelcomeOpen(false);
+  };
+
+  const handleSearchResultSelect = (result) => {
+    const palace = palaces.find((candidate) => candidate.id === result.palaceId);
+    if (!palace) return;
+
+    setSearchOpen(false);
+    setSearchQuery('');
+    if (result.type === 'palace') {
+      setNavStack([palace.id]);
+      return;
+    }
+
+    const item = palace.items.find((candidate) => candidate.id === result.itemId);
+    if (!item) {
+      setNavStack([palace.id]);
+      return;
+    }
+
+    if (item.type === 'gateway') {
+      if (palaces.some((candidate) => candidate.id === item.targetId)) {
+        setNavStack([palace.id, item.targetId]);
+      } else {
+        setNavStack([palace.id]);
+        setStorageIssue('This gateway points to an environment that no longer exists. Delete or repair the gateway.');
+      }
+      return;
+    }
+
+    setNavStack([palace.id]);
+    setEditingItem(item);
+    setEditorOpen(true);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -469,7 +536,20 @@ export default function App() {
               </GlassCard>
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 1, pointerEvents: 'auto' }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', pointerEvents: 'auto' }}>
+              <Tooltip title="Your palaces are saved only in this browser. Export a backup before clearing site data. Cloud sync is not enabled yet.">
+                <Chip
+                  label="Local only"
+                  size="small"
+                  icon={<CloudOffIcon fontSize="small" />}
+                  sx={{ display: { xs: 'none', md: 'flex' }, color: 'white', bgcolor: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.16)' }}
+                />
+              </Tooltip>
+              <Tooltip title="Search palaces and memories">
+                <IconButton aria-label="Search palaces and memories" onClick={() => setSearchOpen(true)} sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }}>
+                  <SearchIcon />
+                </IconButton>
+              </Tooltip>
               <Tooltip title="Export backup"><IconButton aria-label="Export backup" onClick={handleExport} sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }}><DownloadIcon /></IconButton></Tooltip>
               <Tooltip title="Import backup"><IconButton aria-label="Import backup" onClick={() => { setTransferText(''); setTransferError(''); setTransferOpen(true); }} sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }}><UploadIcon /></IconButton></Tooltip>
               <Button 
@@ -638,6 +718,88 @@ export default function App() {
             </Button>
           </Box>
         </Drawer>
+
+        <Dialog open={searchOpen} onClose={() => { setSearchOpen(false); setSearchQuery(''); }} fullWidth maxWidth="sm" PaperProps={{ sx: { bgcolor: '#1a1f26', color: 'white', mx: 1 } }}>
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>
+            <Typography variant="h6" sx={{ mb: 0.5 }}>Search your palaces</Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Find environments, memory titles, or words inside your notes.
+            </Typography>
+            <TextField
+              autoFocus
+              fullWidth
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              label="Search palaces and memories"
+              placeholder="Try a title, topic, or phrase"
+              inputProps={{ 'aria-label': 'Search palace names, memory titles, and note contents' }}
+              sx={{ mt: 2 }}
+            />
+            {!searchQuery.trim() ? (
+              <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
+                Start typing to search your entire local collection.
+              </Typography>
+            ) : searchResults.length === 0 ? (
+              <Typography role="status" variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
+                No matches found. Try a different word or phrase.
+              </Typography>
+            ) : (
+              <List aria-label="Search results" sx={{ mt: 1, maxHeight: '48vh', overflowY: 'auto' }}>
+                {searchResults.map((result) => (
+                  <ListItem key={`${result.type}-${result.palaceId}-${result.itemId || 'palace'}`} disablePadding>
+                    <ListItemButton onClick={() => handleSearchResultSelect(result)} sx={{ borderRadius: 2, mb: 0.5 }}>
+                      <ListItemIcon>
+                        {result.type === 'palace' ? <BookIcon /> : result.itemType === 'gateway' ? <GatewayIcon /> : <NoteIcon />}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={result.title}
+                        secondary={result.type === 'palace'
+                          ? result.subtitle
+                          : [result.palaceName, result.excerpt].filter(Boolean).join(' · ')}
+                        primaryTypographyProps={{ noWrap: true }}
+                        secondaryTypographyProps={{ sx: { color: 'text.secondary' } }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+              <Button onClick={() => { setSearchOpen(false); setSearchQuery(''); }}>Close</Button>
+            </Box>
+          </Box>
+        </Dialog>
+
+        <Dialog open={welcomeOpen} onClose={dismissWelcome} fullWidth maxWidth="sm" PaperProps={{ sx: { bgcolor: '#1a1f26', color: 'white', mx: 1 } }}>
+          <Box sx={{ p: { xs: 2.5, sm: 4 } }}>
+            <Typography variant="overline" sx={{ color: 'primary.main', letterSpacing: 2 }}>WELCOME TO LOCICANVAS</Typography>
+            <Typography variant="h5" sx={{ mt: 0.5, mb: 1.5, fontWeight: 700 }}>Give your memories a place to live.</Typography>
+            <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+              LociCanvas is a visual memory palace. Put ideas at meaningful locations in an environment, then revisit those places to help recall what you learned.
+            </Typography>
+            <Stack spacing={1.5} sx={{ mt: 2.5 }}>
+              <Box>
+                <Typography fontWeight={700}>1. Explore</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>Select a glowing memory marker to open it, or use Palace Collection to switch environments.</Typography>
+              </Box>
+              <Box>
+                <Typography fontWeight={700}>2. Create</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>Turn on Design Mode, click an empty area, and choose Place Memory. Give the memory a clear title and a vivid association.</Typography>
+              </Box>
+              <Box>
+                <Typography fontWeight={700}>3. Arrange and protect</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>In Design Mode, drag markers to meaningful spots. Use Export backup regularly so you can keep a copy of your collection.</Typography>
+              </Box>
+            </Stack>
+            <Alert severity="info" sx={{ mt: 2.5 }}>
+              Your collection is currently stored only in this browser. It does not sync across devices yet. Export a backup before clearing browser data.
+            </Alert>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap', mt: 3 }}>
+              <Button onClick={dismissWelcome} color="inherit">Explore the sample</Button>
+              <Button variant="contained" onClick={() => { dismissWelcome(); setNewEnvironmentOpen(true); }}>Create a palace</Button>
+            </Box>
+          </Box>
+        </Dialog>
 
         <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} PaperProps={{ sx: { bgcolor: '#1a1f26', color: 'white', maxWidth: 520, m: 2 } }}>
           <Box sx={{ p: 4 }}>
