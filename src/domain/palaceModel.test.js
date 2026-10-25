@@ -5,6 +5,10 @@ import {
   clampPercent,
   createStableId,
   isValidHttpsUrl,
+  isValidImageSource,
+  MAX_BACKGROUND_DATA_URL_LENGTH,
+  estimatePalaceStorageBytes,
+  canPersistPalacesLocally,
   deletePalaceAndIncomingGateways,
   moveMarkerInPalaces,
   parsePalaceStorage,
@@ -132,4 +136,39 @@ test('searchPalaces returns no results for blank queries and limits results to 5
     items: [],
   }));
   assert.equal(searchPalaces(manyPalaces, 'library').length, 50);
+});
+
+
+test('image sources allow HTTPS URLs and bounded raster image data URLs only', () => {
+  assert.equal(isValidImageSource('', true), true);
+  assert.equal(isValidImageSource('https://images.example.com/palace.jpg', false), true);
+  assert.equal(isValidImageSource('http://images.example.com/palace.jpg', false), false);
+  assert.equal(isValidImageSource('javascript:alert(1)', false), false);
+  assert.equal(isValidImageSource('data:image/webp;base64,QUJD', false), true);
+  assert.equal(isValidImageSource('data:image/png;base64,QUJD', false), true);
+  assert.equal(isValidImageSource('data:image/svg+xml;base64,PHN2Zz4=', false), false);
+  assert.equal(
+    isValidImageSource(`data:image/webp;base64,${'A'.repeat(MAX_BACKGROUND_DATA_URL_LENGTH)}`, false),
+    false,
+  );
+});
+
+test('local storage size estimation is conservative and oversized imports are rejected', () => {
+  assert.equal(estimatePalaceStorageBytes(sample), JSON.stringify({
+    schemaVersion: 1,
+    palaces: sample,
+  }).length * 2);
+  assert.equal(canPersistPalacesLocally(sample), true);
+
+  const oversized = [{
+    id: 'large',
+    name: 'Large collection',
+    imageUrl: '',
+    items: [{ id: 'large-note', type: 'note', x: 50, y: 50, title: 'Text', content: 'x'.repeat(2_200_000) }],
+  }];
+  assert.equal(canPersistPalacesLocally(oversized), false);
+  assert.throws(
+    () => parsePalaceStorage(JSON.stringify(oversized)),
+    /too large for reliable browser storage/i,
+  );
 });
