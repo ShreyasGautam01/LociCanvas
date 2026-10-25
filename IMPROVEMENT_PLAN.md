@@ -1,8 +1,8 @@
 # LociCanvas v2 — Improvement Plan
 
 **Status:** Standalone repository migration in progress; schema foundation merged; Supabase frontend integration remains incomplete  
-**Scope:** `.`  
-**History:** migrated from `Full_Stack2/.`; this standalone repository is now the implementation home
+**Scope:** standalone repository root  
+**History:** migrated from `Full_Stack2/Experiment2/CaseStudy/locicanvas`; this standalone repository is now the implementation home
 
 ## Product direction
 
