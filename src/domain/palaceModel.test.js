@@ -101,7 +101,7 @@ test('generates prefixed IDs that are not fixed timestamps', () => {
 
 
 test('searchPalaces searches palace names, note titles, and note content case-insensitively', () => {
-  const results = searchPalaces(sample, 'PAPER');
+  const results = searchPalaces(sample, 'NOTE');
   assert.deepEqual(results.map((result) => ({
     type: result.type,
     palaceId: result.palaceId,
@@ -112,6 +112,12 @@ test('searchPalaces searches palace names, note titles, and note content case-in
 
   const contentResults = searchPalaces(sample, 'note');
   assert.ok(contentResults.some((result) => result.type === 'marker' && result.itemId === 'note-1'));
+  const bodyResults = searchPalaces([{
+    id: 'biology',
+    name: 'Biology',
+    items: [{ id: 'cell-note', type: 'note', x: 40, y: 60, title: 'Cell', content: 'Mitochondria make ATP' }],
+  }], 'MITOCHONDRIA');
+  assert.ok(bodyResults.some((result) => result.itemId === 'cell-note' && result.excerpt === 'Mitochondria make ATP'));
   const palaceResults = searchPalaces(sample, 'desk');
   assert.ok(palaceResults.some((result) => result.type === 'palace' && result.palaceId === 'desk'));
   assert.ok(palaceResults.some((result) => result.type === 'marker' && result.itemId === 'gateway-1'));
