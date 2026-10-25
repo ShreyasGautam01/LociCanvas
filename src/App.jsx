@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { createStableId, isValidHttpsUrl, parsePalaceStorage, pointerToCanvasPercent, moveMarkerInPalaces, serializePalaceStorage, searchPalaces } from './domain/palaceModel.js';
+import { createStableId, isValidHttpsUrl, isValidImageSource, canPersistPalacesLocally, parsePalaceStorage, pointerToCanvasPercent, moveMarkerInPalaces, serializePalaceStorage, searchPalaces } from './domain/palaceModel.js';
 import {
   Box,
   Typography,
@@ -90,6 +90,98 @@ const theme = createTheme({
 const STORAGE_KEY = 'locicanvas_v2_data';
 const RECOVERY_KEY = 'locicanvas_v2_data_recovery';
 const ONBOARDING_KEY = 'locicanvas_onboarding_dismissed_v1';
+const MAX_SOURCE_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_OPTIMIZED_BACKGROUND_BYTES = 350 * 1024;
+const MAX_BACKUP_FILE_BYTES = 8 * 1024 * 1024;
+const DEFAULT_BACKGROUND_URL = 'https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&q=80&w=2000';
+
+function decodeImageFile(file) {
+  if (typeof globalThis.createImageBitmap === 'function') {
+    return globalThis.createImageBitmap(file);
+  }
+
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('The selected file could not be opened as an image.'));
+    };
+    image.src = objectUrl;
+  });
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => blob ? resolve(blob) : reject(new Error('Image optimization failed in this browser.')),
+      type,
+      quality,
+    );
+  });
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === 'string'
+      ? resolve(reader.result)
+      : reject(new Error('The optimized image could not be read.'));
+    reader.onerror = () => reject(new Error('The optimized image could not be read.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function compressBackgroundImage(file) {
+  if (!file) throw new Error('Choose an image file first.');
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    throw new Error('Choose a JPG, PNG, or WebP image. SVG, GIF, and other formats are not supported.');
+  }
+  if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+    throw new Error('That image is over 10 MB. Choose a smaller file.');
+  }
+
+  let image;
+  try {
+    image = await decodeImageFile(file);
+    const width = image.width || image.naturalWidth;
+    const height = image.height || image.naturalHeight;
+    if (!width || !height || width * height > 80_000_000) {
+      throw new Error('This image has unsupported dimensions. Choose a smaller image.');
+    }
+
+    let scale = Math.min(1, 1600 / width, 1200 / height);
+    for (let resizeAttempt = 0; resizeAttempt < 5; resizeAttempt += 1) {
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(width * scale));
+      canvas.height = Math.max(1, Math.round(height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Image optimization is not available in this browser.');
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      for (const quality of [0.82, 0.72, 0.62, 0.52]) {
+        const blob = await canvasToBlob(canvas, 'image/webp', quality);
+        if (blob.size <= MAX_OPTIMIZED_BACKGROUND_BYTES
+          && ['image/webp', 'image/jpeg', 'image/png'].includes(blob.type)) {
+          const dataUrl = await blobToDataUrl(blob);
+          if (isValidImageSource(dataUrl, false)) return dataUrl;
+        }
+      }
+
+      scale *= 0.8;
+    }
+    throw new Error('This image could not be reduced enough. Choose a simpler or smaller image.');
+  } catch (error) {
+    if (error instanceof Error) throw error;
+    throw new Error('The selected image could not be processed.');
+  } finally {
+    image?.close?.();
+  }
+}
 
 function shouldShowWelcome() {
   try {
@@ -263,16 +355,21 @@ export default function App() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferText, setTransferText] = useState('');
   const [transferError, setTransferError] = useState('');
+  const backupFileInputRef = useRef(null);
 
   // --- PERSISTENCE EFFECT ---
   useEffect(() => {
     if (initialStorage.issue && palaces === initialStorage.palaces) return;
 
     let nextIssue = '';
-    try {
-      localStorage.setItem(STORAGE_KEY, serializePalaceStorage(palaces));
-    } catch {
-      nextIssue = 'Changes could not be saved to browser storage. Export or copy important content before leaving this page.';
+    if (!canPersistPalacesLocally(palaces)) {
+      nextIssue = 'This collection is too large for reliable browser storage. Export a backup and reduce large notes or uploaded backgrounds.';
+    } else {
+      try {
+        localStorage.setItem(STORAGE_KEY, serializePalaceStorage(palaces));
+      } catch {
+        nextIssue = 'Changes could not be saved to browser storage. Export a backup and remove some large images or data before leaving this page.';
+      }
     }
 
     const statusTimer = setTimeout(() => setStorageIssue(nextIssue), 0);
@@ -345,49 +442,64 @@ export default function App() {
 
   const handleCreateGateway = (targetPalaceId, isNew = false, newPalaceName = '', newPalaceUrl = '') => {
     if (!clickPos) return;
-    if (isNew && (!newPalaceName.trim() || !isValidHttpsUrl(newPalaceUrl, true))) {
-      setStorageIssue('Enter an environment name and a valid HTTPS image URL, or leave the URL empty.');
+    if (isNew && (!newPalaceName.trim() || !isValidImageSource(newPalaceUrl, true))) {
+      setStorageIssue('Enter an environment name and a valid HTTPS image URL or uploaded image.');
       return;
     }
     if (!isNew && (!targetPalaceId || !palaces.some(p => p.id === targetPalaceId) || targetPalaceId === currentLevelId)) {
       setStorageIssue('Choose a valid destination environment for this gateway.');
       return;
     }
+
     let finalTargetId = targetPalaceId;
-    setPalaces(prev => {
-      let newState = [...prev];
-      if (isNew) {
-        finalTargetId = createStableId('palace');
-        const newPalace = {
-          id: finalTargetId,
-          name: newPalaceName,
-          imageUrl: newPalaceUrl || 'https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&q=80&w=2000',
-          items: []
-        };
-        newState.push(newPalace);
-      }
-      const gatewayItem = {
-        id: createStableId('gateway'),
-        type: 'gateway',
-        x: clickPos.x,
-        y: clickPos.y,
-        title: isNew ? `Gateway to ${newPalaceName}` : 'Gateway',
-        targetId: finalTargetId,
-        color: DEFAULT_THEME_COLOR
-      };
-      return newState.map(p => p.id === currentLevelId ? { ...p, items: [...p.items, gatewayItem] } : p);
-    });
+    const nextState = [...palaces];
+    if (isNew) {
+      finalTargetId = createStableId('palace');
+      nextState.push({
+        id: finalTargetId,
+        name: newPalaceName.trim(),
+        imageUrl: newPalaceUrl.trim() || DEFAULT_BACKGROUND_URL,
+        items: [],
+      });
+    }
+
+    const gatewayItem = {
+      id: createStableId('gateway'),
+      type: 'gateway',
+      x: clickPos.x,
+      y: clickPos.y,
+      title: isNew ? `Gateway to ${newPalaceName.trim()}` : 'Gateway',
+      targetId: finalTargetId,
+      color: DEFAULT_THEME_COLOR,
+    };
+    const updatedPalaces = nextState.map((p) => p.id === currentLevelId
+      ? { ...p, items: [...p.items, gatewayItem] }
+      : p);
+
+    if (!canPersistPalacesLocally(updatedPalaces)) {
+      setStorageIssue('This image would make your collection too large for reliable browser storage. Choose a smaller image or remove an uploaded background.');
+      return;
+    }
+
+    setPalaces(updatedPalaces);
     setGatewayDialogOpen(false);
   };
 
   // --- CORE LOGIC: ENVIRONMENT SETTINGS ---
   const handleUpdateEnvironment = (newName, newUrl) => {
     const trimmedName = newName.trim();
-    if (!trimmedName || !isValidHttpsUrl(newUrl, true)) {
-      setStorageIssue('Use a non-empty environment name and an HTTPS background image URL (or leave the URL empty).');
+    if (!trimmedName || !isValidImageSource(newUrl, true)) {
+      setStorageIssue('Use a non-empty environment name and a valid HTTPS image URL or uploaded image (or leave the URL empty).');
       return;
     }
-    setPalaces(prev => prev.map(p => p.id === currentLevelId ? { ...p, name: trimmedName, imageUrl: newUrl.trim() } : p));
+    const updatedPalaces = palaces.map(p => p.id === currentLevelId
+      ? { ...p, name: trimmedName, imageUrl: newUrl.trim() }
+      : p);
+    if (!canPersistPalacesLocally(updatedPalaces)) {
+      setStorageIssue('This image would make your collection too large for reliable browser storage. Choose a smaller image or remove an uploaded background.');
+      return;
+    }
+    setPalaces(updatedPalaces);
     setSettingsOpen(false);
   };
 
@@ -408,6 +520,30 @@ export default function App() {
     }
   };
 
+  const handleBackupFileChange = async (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    if (file.size > MAX_BACKUP_FILE_BYTES) {
+      setTransferError('This backup file is over 8 MB. Choose a smaller LociCanvas JSON backup.');
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      parsePalaceStorage(text); // Validate before placing its contents in the editor.
+      setTransferText(text);
+      setTransferError('');
+      setStorageIssue(`Backup file loaded: ${file.name}. Review it, then choose Validate and Import.`);
+    } catch (error) {
+      setTransferError(error instanceof Error
+        ? error.message
+        : 'This is not a valid LociCanvas backup. No data was changed.');
+    }
+  };
+
   const handleImport = () => {
     try {
       const imported = parsePalaceStorage(transferText);
@@ -418,8 +554,10 @@ export default function App() {
       setTransferText('');
       setTransferError('');
       setStorageIssue('Collection imported.');
-    } catch {
-      setTransferError('This is not a valid LociCanvas backup. No data was changed.');
+    } catch (error) {
+      setTransferError(error instanceof Error
+        ? error.message
+        : 'This is not a valid LociCanvas backup. No data was changed.');
     }
   };
 
@@ -442,18 +580,23 @@ export default function App() {
 
   const handleCreateNewEnvironment = (name, url) => {
     const trimmedName = name.trim();
-    if (!trimmedName || !isValidHttpsUrl(url, true)) {
-      setStorageIssue('Use a non-empty environment name and an HTTPS background image URL (or leave the URL empty).');
+    if (!trimmedName || !isValidImageSource(url, true)) {
+      setStorageIssue('Use a non-empty environment name and a valid HTTPS image URL or uploaded image (or leave the URL empty).');
       return;
     }
     const newId = createStableId('palace');
     const newPalace = {
       id: newId,
       name: trimmedName,
-      imageUrl: url.trim() || 'https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&q=80&w=2000',
+      imageUrl: url.trim() || DEFAULT_BACKGROUND_URL,
       items: [],
     };
-    setPalaces((prev) => [...prev, newPalace]);
+    const updatedPalaces = [...palaces, newPalace];
+    if (!canPersistPalacesLocally(updatedPalaces)) {
+      setStorageIssue('This image would make your collection too large for reliable browser storage. Choose a smaller image or remove an uploaded background.');
+      return;
+    }
+    setPalaces(updatedPalaces);
     setNavStack([newId]);
     setNewEnvironmentOpen(false);
     setSidebarOpen(false);
@@ -589,7 +732,7 @@ export default function App() {
               animate={{ opacity: 1, scale: 1, filter: revealLevel > 0 ? 'blur(0px)' : 'blur(40px)' }}
               exit={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
               transition={{ duration: 0.8, ease: "easeOut" }}
-              style={{ width: '100%', height: '100%', backgroundImage: `url(${currentLevel?.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+              style={{ width: '100%', height: '100%', backgroundImage: currentLevel?.imageUrl ? `url("${currentLevel.imageUrl}")` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' }}
             >
               <Box sx={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle, transparent 60%, rgba(0,0,0,0.7) 100%)', pointerEvents: 'none' }} />
               
@@ -676,7 +819,21 @@ export default function App() {
         <Dialog open={transferOpen} onClose={() => setTransferOpen(false)} fullWidth maxWidth="sm">
           <Box sx={{ p: 3, bgcolor: '#1a1f26', color: 'white' }}>
             <Typography variant="h6" sx={{ mb: 1 }}>Import a LociCanvas backup</Typography>
-            <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>Paste a previously exported JSON backup. Import replaces the current local collection after confirmation.</Typography>
+            <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>Choose a previously exported JSON backup or paste its contents. Import replaces the current local collection after confirmation.</Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2 }}>
+              <Button variant="outlined" startIcon={<UploadIcon />} onClick={() => backupFileInputRef.current?.click()}>
+                Choose JSON backup
+              </Button>
+              <Typography variant="caption" sx={{ alignSelf: 'center', color: 'text.secondary' }}>Maximum file size: 8 MB</Typography>
+            </Stack>
+            <input
+              ref={backupFileInputRef}
+              type="file"
+              accept=".json,application/json"
+              aria-label="Choose LociCanvas JSON backup file"
+              style={{ display: 'none' }}
+              onChange={handleBackupFileChange}
+            />
             <TextField fullWidth multiline minRows={8} maxRows={16} label="Backup JSON" value={transferText} onChange={event => setTransferText(event.target.value)} />
             {transferError && <Alert severity="error" sx={{ mt: 2 }}>{transferError}</Alert>}
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
@@ -941,13 +1098,13 @@ function GatewaySetupForm({ palaces, currentId, onSubmit, onCancel }) {
       ) : (
         <>
           <TextField fullWidth label="Environment Name" value={newName} onChange={e => setNewName(e.target.value)} sx={{ mb: 2 }} />
-          <TextField fullWidth label="Image URL (Optional)" value={newUrl} onChange={e => setNewUrl(e.target.value)} error={!isValidHttpsUrl(newUrl, true)} helperText={!isValidHttpsUrl(newUrl, true) ? 'Use a valid HTTPS URL.' : 'Leave empty for the default background'} />
+          <BackgroundImageField value={newUrl} onChange={setNewUrl} />
         </>
       )}
 
       <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
         <Button onClick={onCancel}>Cancel</Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={mode === 'existing' ? !targetId || !availablePalaces.some(p => p.id === targetId) : !newName.trim() || !isValidHttpsUrl(newUrl, true)}>Create Link</Button>
+        <Button variant="contained" onClick={handleSubmit} disabled={mode === 'existing' ? !targetId || !availablePalaces.some(p => p.id === targetId) : !newName.trim() || !isValidImageSource(newUrl, true)}>Create Link</Button>
       </Box>
     </Box>
   );
@@ -969,14 +1126,93 @@ function EnvironmentSettingsForm({ currentName, currentUrl, onSave, onCancel, mo
         sx={{ mb: 3 }}
         required
       />
-      <TextField fullWidth label="Background Image URL" value={url} onChange={e => setUrl(e.target.value)} error={!isValidHttpsUrl(url, true)} helperText={!isValidHttpsUrl(url, true) ? 'Use a valid HTTPS URL or leave empty.' : 'Use an HTTPS image URL or leave empty for no background.'} sx={{ mb: 3 }} />
+      <BackgroundImageField value={url} onChange={setUrl} />
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
         <Button onClick={onCancel}>Cancel</Button>
-        <Button variant="contained" disabled={!name.trim() || !isValidHttpsUrl(url, true)} onClick={() => onSave(name, url)}>
+        <Button variant="contained" disabled={!name.trim() || !isValidImageSource(url, true)} onClick={() => onSave(name, url)}>
           {mode === 'create' ? 'Create Environment' : 'Update Environment'}
         </Button>
       </Box>
     </Box>
+  );
+}
+
+function BackgroundImageField({ value, onChange }) {
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const source = typeof value === 'string' ? value : '';
+  const isUploadedImage = source.startsWith('data:image/');
+  const urlValue = isUploadedImage ? '' : source;
+
+  const handleFileChange = async (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    setUploadError('');
+    setUploading(true);
+    try {
+      const dataUrl = await compressBackgroundImage(file);
+      onChange(dataUrl);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'The image could not be uploaded.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Stack spacing={1.5} sx={{ mb: 2 }}>
+      <TextField
+        fullWidth
+        label="Background image URL (optional)"
+        value={urlValue}
+        onChange={(event) => {
+          setUploadError('');
+          onChange(event.target.value);
+        }}
+        error={Boolean(urlValue.trim()) && !isValidHttpsUrl(urlValue, false)}
+        helperText="Paste an HTTPS image URL, or upload a file below."
+      />
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+        <Button
+          variant="outlined"
+          startIcon={<UploadIcon />}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+        >
+          {uploading ? 'Optimizing image…' : 'Upload image'}
+        </Button>
+        {isUploadedImage && <Chip size="small" color="success" label="Optimized image selected" />}
+        {source && (
+          <Button color="inherit" size="small" onClick={() => { setUploadError(''); onChange(''); }}>
+            Clear background
+          </Button>
+        )}
+      </Stack>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        aria-label="Upload background image from this device"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+        JPG, PNG, or WebP · up to 10 MB before optimization · stored locally and included in JSON backups.
+      </Typography>
+      {uploadError && <Alert severity="error">{uploadError}</Alert>}
+      {source && isValidImageSource(source, false) && (
+        <Box
+          component="img"
+          src={source}
+          alt="Background image preview"
+          sx={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 2, border: '1px solid rgba(255,255,255,0.14)' }}
+        />
+      )}
+    </Stack>
   );
 }
 
