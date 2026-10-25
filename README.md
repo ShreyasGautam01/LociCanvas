@@ -11,6 +11,10 @@ LociCanvas is a visual digital memory palace based on the Method of Loci. Create
 - Design mode for adding memories and gateways.
 - Drag markers to reposition them while Design Mode is active.
 - Create environments from the Palace Collection drawer.
+- First-run welcome guide explaining the memory-palace workflow and backup safety.
+- Global search across palace names, marker titles, and note content.
+- Keyboard-focusable memory and gateway markers; Enter/Space activates the selected marker.
+- Visible local-only status and a clear warning that cloud sync is not enabled yet.
 - Built-in guide dialog.
 - Browser-local persistence using a versioned JSON envelope, with support for reading the older array format.
 - Export a versioned JSON backup and import a validated backup after explicit replacement confirmation.

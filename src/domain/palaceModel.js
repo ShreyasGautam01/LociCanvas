@@ -128,3 +128,56 @@ export function serializePalaceStorage(palaces) {
     palaces,
   });
 }
+
+
+/**
+ * Search across palace names and marker titles/content for the local-first UI.
+ * Results intentionally contain only fields needed by the search-results list.
+ */
+export function searchPalaces(palaces, query) {
+  if (!Array.isArray(palaces) || typeof query !== 'string') return [];
+
+  const term = query.trim().toLocaleLowerCase();
+  if (!term) return [];
+
+  const results = [];
+  for (const palace of palaces) {
+    if (!palace || typeof palace.id !== 'string' || typeof palace.name !== 'string') continue;
+    const items = Array.isArray(palace.items) ? palace.items : [];
+
+    if (palace.name.toLocaleLowerCase().includes(term)) {
+      results.push({
+        type: 'palace',
+        palaceId: palace.id,
+        palaceName: palace.name,
+        itemId: null,
+        title: palace.name,
+        subtitle: `${items.length} ${items.length === 1 ? 'memory' : 'memories'}`,
+      });
+    }
+
+    for (const item of items) {
+      if (!item || typeof item.id !== 'string') continue;
+      const title = typeof item.title === 'string' ? item.title : '';
+      const content = typeof item.content === 'string' ? item.content : '';
+      if (!`${title}\n${content}`.toLocaleLowerCase().includes(term)) continue;
+
+      const normalizedContent = content.replace(/\s+/g, ' ').trim();
+      const excerpt = normalizedContent.length > 110
+        ? `${normalizedContent.slice(0, 107).trimEnd()}…`
+        : normalizedContent;
+      results.push({
+        type: 'marker',
+        itemType: item.type,
+        palaceId: palace.id,
+        palaceName: palace.name,
+        itemId: item.id,
+        targetId: item.targetId,
+        title: title || (item.type === 'gateway' ? 'Gateway' : 'Untitled memory'),
+        excerpt,
+      });
+    }
+  }
+
+  return results.slice(0, 50);
+}
