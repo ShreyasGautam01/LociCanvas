@@ -1,4 +1,6 @@
 export const PALACE_DATA_VERSION = 1;
+export const MAX_BACKGROUND_DATA_URL_LENGTH = 500 * 1024;
+export const MAX_LOCAL_COLLECTION_BYTES = 4 * 1024 * 1024;
 
 export function isValidHttpsUrl(value, allowEmpty = true) {
   const candidate = typeof value === 'string' ? value.trim() : '';
@@ -7,6 +9,36 @@ export function isValidHttpsUrl(value, allowEmpty = true) {
   try {
     const url = new URL(candidate);
     return url.protocol === 'https:' && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Accept remote HTTPS images or bounded, browser-generated image data URLs.
+ * SVG and arbitrary data URLs are intentionally excluded.
+ */
+export function isValidImageSource(value, allowEmpty = true) {
+  const candidate = typeof value === 'string' ? value.trim() : '';
+  if (!candidate) return allowEmpty;
+  if (candidate.length > 4096 && !candidate.startsWith('data:image/')) return false;
+
+  if (candidate.startsWith('data:image/')) {
+    return candidate.length <= MAX_BACKGROUND_DATA_URL_LENGTH
+      && /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(candidate);
+  }
+
+  return isValidHttpsUrl(candidate, false);
+}
+
+export function estimatePalaceStorageBytes(palaces) {
+  // localStorage accounts for string data in UTF-16 code units in common browsers.
+  return serializePalaceStorage(palaces).length * 2;
+}
+
+export function canPersistPalacesLocally(palaces) {
+  try {
+    return estimatePalaceStorageBytes(palaces) <= MAX_LOCAL_COLLECTION_BYTES;
   } catch {
     return false;
   }
@@ -62,7 +94,7 @@ export function deletePalaceAndIncomingGateways(palaces, palaceId) {
     }));
 }
 
-export function parsePalaceStorage(raw) {
+export function parsePalaceStorage(raw, { enforceLocalLimit = false } = {}) {
   const parsed = JSON.parse(raw);
   const palaces = Array.isArray(parsed)
     ? parsed
@@ -87,6 +119,9 @@ export function parsePalaceStorage(raw) {
       palaceIds.has(palace.id)
     ) {
       throw new Error('The saved palace collection is invalid.');
+    }
+    if (palace.imageUrl !== undefined && !isValidImageSource(palace.imageUrl, true)) {
+      throw new Error('The saved collection contains an invalid or oversized background image source.');
     }
     palaceIds.add(palace.id);
   }
@@ -117,6 +152,10 @@ export function parsePalaceStorage(raw) {
 
       markerIds.add(item.id);
     }
+  }
+
+  if (enforceLocalLimit && !canPersistPalacesLocally(palaces)) {
+    throw new Error('This backup is too large for reliable browser storage. Remove some uploaded backgrounds or reduce the image sizes.');
   }
 
   return palaces;

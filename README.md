@@ -4,7 +4,7 @@ LociCanvas is a visual digital memory palace based on the Method of Loci. Create
 
 ## Current features
 
-- Visual palace environments with background image URLs.
+- Visual palace environments with HTTPS background URLs or device-uploaded JPG/PNG/WebP images, optimized before saving.
 - Memory notes with title, content, and accent colors.
 - Gateway markers linking environments.
 - Breadcrumb and collection navigation.
@@ -17,9 +17,10 @@ LociCanvas is a visual digital memory palace based on the Method of Loci. Create
 - Visible local-only status and a clear warning that cloud sync is not enabled yet.
 - Built-in guide dialog.
 - Browser-local persistence using a versioned JSON envelope, with support for reading the older array format.
-- Export a versioned JSON backup and import a validated backup after explicit replacement confirmation.
+- Export a versioned JSON backup; import by pasting JSON or choosing a JSON backup file after validation and explicit replacement confirmation.
+- Uploaded background images are downscaled/compressed to a maximum of 350 KB each and included in local JSON backups; a conservative 4 MiB estimated browser-storage budget protects against oversized collections.
 - Best-effort recovery copy preservation with an in-app recovery action.
-- HTTPS-only validation for new or edited background-image URLs.
+- HTTPS URL validation plus allow-listed, size-bounded raster image data URLs for device-uploaded backgrounds.
 - Responsive, full-width editor dialogs on smaller screens.
 - Validation of saved palace/marker structure and broken gateway references.
 
@@ -82,8 +83,7 @@ GitHub Pages only serves the static frontend. The deployment workflow has comple
 ## Current limitations
 
 - No authentication, cloud database, or cross-device synchronization.
-- No background-image upload; backgrounds are supplied as HTTPS URLs.
-- Import currently accepts pasted JSON backup content; direct file-picker import is not implemented.
+- Uploaded background images remain local to this browser until cloud storage is implemented. A future Supabase Storage integration will be needed to sync those images across devices.
 - Browser-local recovery remains best-effort and depends on browser storage being accessible.
 - Palace deletion UI, search, tags, and undo/redo are not implemented yet.
 - A successful Pages deployment is recorded in GitHub Actions, but direct browser/device smoke tests and accessibility checks remain outstanding.
