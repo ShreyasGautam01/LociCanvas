@@ -160,9 +160,9 @@ export function searchPalaces(palaces, query) {
       if (!item || typeof item.id !== 'string') continue;
       const title = typeof item.title === 'string' ? item.title : '';
       const content = typeof item.content === 'string' ? item.content : '';
-      if (!`${title}\\n${content}`.toLocaleLowerCase().includes(term)) continue;
+      if (!`${title}\n${content}`.toLocaleLowerCase().includes(term)) continue;
 
-      const normalizedContent = content.replace(/\\s+/g, ' ').trim();
+      const normalizedContent = content.replace(/\s+/g, ' ').trim();
       const excerpt = normalizedContent.length > 110
         ? `${normalizedContent.slice(0, 107).trimEnd()}…`
         : normalizedContent;
