@@ -94,7 +94,7 @@ export function deletePalaceAndIncomingGateways(palaces, palaceId) {
     }));
 }
 
-export function parsePalaceStorage(raw) {
+export function parsePalaceStorage(raw, { enforceLocalLimit = false } = {}) {
   const parsed = JSON.parse(raw);
   const palaces = Array.isArray(parsed)
     ? parsed
@@ -154,7 +154,7 @@ export function parsePalaceStorage(raw) {
     }
   }
 
-  if (!canPersistPalacesLocally(palaces)) {
+  if (enforceLocalLimit && !canPersistPalacesLocally(palaces)) {
     throw new Error('This backup is too large for reliable browser storage. Remove some uploaded backgrounds or reduce the image sizes.');
   }
 
