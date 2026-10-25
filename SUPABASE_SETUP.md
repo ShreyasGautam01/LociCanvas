@@ -57,6 +57,28 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_REPLACE_ME
 - Use a Supabase **publishable** key in browser code. Never put a Supabase secret/service-role key, database password, or personal access token in `VITE_*` variables, frontend files, GitHub Pages artifacts, or commit history.
 - A publishable key is designed for public clients; it does not replace RLS. Data privacy depends on RLS and database constraints.
 
+## Connect the existing Supabase project to this repository
+
+Use the existing project; do not create a replacement:
+
+- Project name: `Loci_Canvas`
+- Project reference: `ydvxlwtwkogjcirjzoor`
+- Project URL: `https://ydvxlwtwkogjcirjzoor.supabase.co`
+
+In the Supabase Dashboard:
+
+1. Open **Project Settings → Integrations → GitHub Integration**.
+2. Choose **Authorize GitHub** if needed, and authorize Supabase on GitHub.
+3. Select repository `ShreyasGautam01/LociCanvas`.
+4. Set **Working directory** to `.` because the `supabase/` directory is at the repository root.
+5. Set the production branch to `main`.
+6. Connect/enable the integration, but keep **Deploy to production** disabled until this standalone-repository migration PR is merged and its CI checks pass.
+7. After the migration PR is merged, enable **Deploy to production** to let the integration apply new migration files pushed to `main`. Then check the Supabase integration status on GitHub and verify the tables in the Supabase Dashboard.
+
+The Supabase project was checked on 2026-10-25 after restoring it to an active state: it reported healthy, with no recorded migrations and no tables in the `public` schema. This means the existing project did not show an already-applied LociCanvas schema at that time. Verify again in the dashboard before the first production deployment in case its state changes.
+
+Supabase's GitHub integration deploys files under `supabase/migrations/`; simply connecting the repository does not wire React to Supabase Auth or cloud persistence. The UI is still localStorage-only until the frontend client, authentication flows, and repository adapter are implemented.
+
 ## Security verification required before cloud writes are enabled
 
 After applying the migration and once the auth/data integration exists, use two separately registered test accounts:
