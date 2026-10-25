@@ -414,13 +414,20 @@ export default function App() {
 
   // --- CORE LOGIC: DATA UPDATES ---
   const handleSaveNote = (itemData) => {
-    setPalaces(prev => prev.map(p => {
-      if (p.id !== currentLevelId) return p;
-      const exists = p.items.find(i => i.id === itemData.id);
-      return exists 
-        ? { ...p, items: p.items.map(i => i.id === itemData.id ? itemData : i) }
-        : { ...p, items: [...p.items, itemData] };
-    }));
+    const updatedPalaces = palaces.map((palace) => {
+      if (palace.id !== currentLevelId) return palace;
+      const exists = palace.items.some((item) => item.id === itemData.id);
+      return exists
+        ? { ...palace, items: palace.items.map((item) => item.id === itemData.id ? itemData : item) }
+        : { ...palace, items: [...palace.items, itemData] };
+    });
+
+    if (!canPersistPalacesLocally(updatedPalaces)) {
+      setStorageIssue('This change would make your collection too large for reliable browser storage. Export a backup and reduce large notes or uploaded backgrounds.');
+      return;
+    }
+
+    setPalaces(updatedPalaces);
     setEditorOpen(false);
     setEditingItem(null);
   };
@@ -533,7 +540,7 @@ export default function App() {
 
     try {
       const text = await file.text();
-      parsePalaceStorage(text); // Validate before placing its contents in the editor.
+      parsePalaceStorage(text, { enforceLocalLimit: true }); // Validate before placing its contents in the editor.
       setTransferText(text);
       setTransferError('');
       setStorageIssue(`Backup file loaded: ${file.name}. Review it, then choose Validate and Import.`);
@@ -546,7 +553,7 @@ export default function App() {
 
   const handleImport = () => {
     try {
-      const imported = parsePalaceStorage(transferText);
+      const imported = parsePalaceStorage(transferText, { enforceLocalLimit: true });
       if (!window.confirm('Import replaces the current local collection. Export a backup first if you need the current collection. Continue?')) return;
       setPalaces(imported);
       setNavStack([imported[0].id]);
