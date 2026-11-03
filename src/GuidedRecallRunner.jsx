@@ -15,8 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import {
-  Advance as AdvanceIcon,
-  ArrowBack as ArrowBackIcon,
+  ArrowForward as AdvanceIcon,
   CheckCircle as CheckCircleIcon,
   ExitToApp as ExitToAppIcon,
   Visibility as VisibilityIcon,
@@ -374,7 +373,7 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
             <Stack spacing={2}>
               <Chip color="secondary" size="small" label="Navigation step" sx={{ alignSelf: 'flex-start' }} />
               <Typography variant="h5" fontWeight={700}>{location.markerTitle}</Typography>
-              <Typography color="text.secondary">This gateway leads to **{destinationName}**.</Typography>
+              <Typography color="text.secondary">This gateway leads to <strong>{destinationName}</strong>.</Typography>
               <Alert severity="info">Entering a gateway is navigation, not a recall attempt. It does not affect the score.</Alert>
               <Button variant="contained" onClick={handleEnterGateway}>Enter gateway to {destinationName}</Button>
             </Stack>
