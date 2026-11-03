@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node --test",
-    "test:e2e": "node --test tests/browser/*.test.js"
+    "test:e2e": "node --test browser-tests/*.browser.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
