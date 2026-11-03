@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - docs/guided-recall-v1-contract
   push:
     branches:
       - main
