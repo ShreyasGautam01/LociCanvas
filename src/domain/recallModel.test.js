@@ -100,6 +100,13 @@ test('rejects an empty route and a route without recall stops', () => {
   assert.ok(result.errors.some((error) => error.code === 'NO_RECALL_STOPS'));
 });
 
+test('rejects malformed palace item collections without throwing', () => {
+  const malformedPalaces = [{ id: 'library', name: 'Library', items: {} }];
+  const result = validateRecallRoute(makeRoute(), malformedPalaces);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.code === 'MISSING_MARKER'));
+});
+
 test('rejects missing palaces, missing markers, and markers of the wrong type', () => {
   const missingPalace = makeRoute([
     { id: 'a', kind: 'recall', palaceId: 'missing', markerId: 'note-1' },
