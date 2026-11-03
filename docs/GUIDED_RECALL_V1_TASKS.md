@@ -46,7 +46,7 @@ Acceptance:
 
 ## PR 2 — Local persistence and route authoring
 
-**Implementation slice:** PR #7, branch `feat/guided-recall-route-authoring` (open for review).
+**Implementation slice:** PR #7, branch `feat/guided-recall-route-authoring` (merged into `main`).
 
 **Goal:** users can define valid routes from existing palace markers.
 
@@ -68,25 +68,27 @@ Acceptance:
 
 ## PR 3 — Guided runner and persistent sessions
 
+**Implementation slice:** PR #8, branch `feat/guided-recall-runner` (open for review).
+
 **Goal:** a complete recall session works end-to-end.
 
 Deliverables:
-- Guided session screen for recall and gateway steps.
-- Prompt-first / answer-hidden flow.
-- Confidence before reveal.
-- Optional typed response held in memory only and discarded after grade unless future privacy opt-in is specified.
-- Explicit self-grade and controlled progression.
-- Start, pause, resume, complete, and abandon handling.
-- Persistent session snapshot and attempt events.
+- [x] Guided session screen for recall and gateway steps.
+- [x] Prompt-first / answer-hidden flow.
+- [x] Confidence choice or explicit confidence skip before reveal.
+- [x] Optional typed response held in memory only and never added to session storage.
+- [x] Explicit self-grade and controlled progression.
+- [x] Start, exit-with-resume, resume, complete, and abandon handling. (Pause is represented by leaving an in-progress session resumable.)
+- [x] Persistent session snapshot, skipped outcomes, gateway traversal, and attempt events.
 
 Acceptance:
-- [ ] The answer cannot be revealed before the learner chooses Reveal.
-- [ ] The learner cannot progress until the recall step is graded or skipped.
-- [ ] Confidence is recorded before reveal.
-- [ ] Gateway transitions use the route's actual gateway marker and target.
-- [ ] A refresh resumes without losing graded attempts.
-- [ ] Abandoning does not turn an ungraded stop into a miss.
-- [ ] Exactly one attempt is recorded per recall stop.
+- [x] The answer cannot be revealed before the learner chooses Reveal.
+- [x] The learner cannot progress until the recall step is graded or skipped.
+- [x] Confidence is selected or explicitly skipped before reveal; the resulting value is stored on a grade when provided.
+- [x] Gateway transitions use the route's actual gateway marker and target.
+- [x] A refresh resumes without losing graded attempts.
+- [x] Abandoning does not turn an ungraded stop into a miss.
+- [x] Exactly one attempt is recorded per recall stop.
 
 ## PR 4 — Session history and weakness analytics
 
@@ -140,6 +142,13 @@ Acceptance:
 - [ ] Answer content is not exposed before reveal through accessible labels.
 - [ ] Session resume and storage errors are tested in a browser.
 - [ ] Evaluation reports delayed recall and sample size, not engagement alone.
+
+### PR #8 verification scope
+
+- Session snapshots preserve prompt/answer revisions and stable locus metadata without duplicating background image bytes.
+- Session updates persist both the resumable session and a flat attempt index for later analytics.
+- The browser acceptance test verifies that answers remain absent before explicit reveal, confidence is addressed before reveal, self-grades are persisted, gateway navigation is explicit, and a session resumes after refresh.
+- Session summaries show self-reported grade counts and exclude skipped stops and gateway navigation from the score.
 
 ### PR #7 verification scope
 
