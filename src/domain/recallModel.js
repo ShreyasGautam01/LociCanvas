@@ -216,6 +216,26 @@ export function createRecallSessionSnapshot(route, palaces, {
   if (!isValidTimestamp(now)) throw new Error('Session start time must be a valid ISO timestamp.');
 
   const routeSnapshot = route.steps.map((step) => ({ ...step }));
+  const locationSnapshots = routeSnapshot.map((step) => {
+    const palace = findPalace(palaces, step.palaceId);
+    const marker = findMarker(palace, step.markerId);
+    const destination = step.kind === 'gateway' ? findPalace(palaces, step.targetPalaceId) : null;
+    return {
+      routeStepId: step.id,
+      kind: step.kind,
+      palaceId: step.palaceId,
+      palaceNameSnapshot: typeof palace?.name === 'string' ? palace.name : 'Unknown environment',
+      markerId: step.markerId,
+      markerTitleSnapshot: typeof marker?.title === 'string' ? marker.title : '',
+      markerXSnapshot: Number.isFinite(marker?.x) ? marker.x : 50,
+      markerYSnapshot: Number.isFinite(marker?.y) ? marker.y : 50,
+      ...(step.kind === 'gateway' ? {
+        targetPalaceId: step.targetPalaceId,
+        targetPalaceNameSnapshot: typeof destination?.name === 'string' ? destination.name : 'Unknown destination',
+      } : {}),
+    };
+  });
+
   const recallSnapshots = routeSnapshot
     .filter((step) => step.kind === 'recall')
     .map((step) => {
@@ -239,6 +259,7 @@ export function createRecallSessionSnapshot(route, palaces, {
     routeId: route.id,
     routeNameSnapshot: route.name.trim(),
     routeSnapshot,
+    locationSnapshots,
     recallSnapshots,
     state: 'in_progress',
     startedAt: now,
