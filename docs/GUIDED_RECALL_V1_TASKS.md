@@ -39,6 +39,8 @@ Acceptance:
 - [ ] All route invariants from spec section 3.2 are covered by tests.
 - [ ] All session invariants from spec section 5 are covered by tests.
 - [ ] Weak-item tests cover minimum sample, threshold boundary, date cutoff, last-five window, and revision changes.
+- [ ] Explicit skips are excluded from scored attempts and weakness calculations.
+- [ ] Session snapshots retain prompt and answer revisions; changes to the source note cannot mutate an active session.
 - [ ] Domain code has no React, MUI, localStorage, or Supabase dependency.
 - [ ] Existing `npm test`, `npm run lint`, and `npm run build` remain green.
 

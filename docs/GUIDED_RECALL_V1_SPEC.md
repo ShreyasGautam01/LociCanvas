@@ -1,6 +1,6 @@
 # Guided Recall v1 — Product and Engineering Contract
 
-**Status:** Proposed, pending research-report reconciliation and implementation review  
+**Status:** Proposed; initial evidence reconciliation completed 2026-11-03; final research-report reconciliation remains open  
 **Target:** LociCanvas local-first release  
 **Normative language:** MUST / MUST NOT are release-blocking requirements; SHOULD is the default unless a documented decision record explains otherwise; MAY is optional.  
 **Parent context:** `IMPROVEMENT_PLAN.md`
@@ -32,7 +32,7 @@ The application currently has no route/recall domain, no session history, and no
 3. Validate that each route can be traversed through the actual directed gateway links.
 4. Run the route in a guided mode that shows the relevant palace background and locus while withholding the note answer.
 5. Require a learner action before revealing the answer.
-6. Record a self-grade (correct / partial / missed / skipped) and optional confidence rating for every recall stop.
+6. Record one self-grade (correct / partial / missed) or an explicit skip for every recall stop, plus an optional confidence rating.
 7. Save completed and interrupted session state locally and allow resume after refresh.
 8. Show session summaries and per-note recent performance with sample counts.
 9. Identify repeatedly missed notes using the explicit algorithm in section 7.
@@ -145,9 +145,9 @@ For each recall step, the screen MUST:
 2. Show a recall cue. In v1, the note's title is the cue.
 3. Keep the note's content/answer hidden until the learner explicitly requests reveal.
 4. Offer an optional response field for the learner to type or mentally formulate an answer. The field MUST be optional; the feature must work for mental recall.
-5. Ask for confidence **before** answer reveal: `low`, `medium`, or `high`.
+5. After the learner has made a genuine recall attempt (mentally or by typing), ask for confidence **before** answer reveal: `low`, `medium`, or `high`. The UI MUST distinguish "I have attempted recall" from "Reveal answer". Confidence is confidence in the attempted answer, not a prediction made before trying to retrieve.
 6. Reveal the saved note content only after the learner chooses `Reveal answer`.
-7. Require one self-grade: `correct`, `partial`, `missed`, or `skipped`.
+7. Require one self-grade: `correct`, `partial`, or `missed`; alternatively, the learner may explicitly `skip` without making a recall attempt.
 8. Only then allow progression to the next step.
 
 The app MUST NOT infer correctness from typed text in v1. The user is the grader. The interface MUST label recorded results as self-reported.
@@ -162,7 +162,7 @@ The runner MUST use the gateway reference in the route snapshot. It MUST NOT inv
 
 ### 4.4 Confidence and elapsed time
 
-Confidence is collected before reveal to avoid post-answer confidence revision. It is a self-report, not an objective probability estimate.
+Confidence is collected after a genuine retrieval attempt but before reveal. This is a retrospective confidence judgement about the answer just attempted, not a judgement of learning made before retrieval. It remains a self-report, not an objective probability estimate.
 
 If latency is recorded, it MUST be labelled **cue-to-reveal time**. It MUST NOT contribute to the recall score. The implementation SHOULD use a monotonic clock and pause elapsed-time accumulation while the document is hidden or the session is paused. If reliable timing is unavailable, omit the value rather than inventing one.
 
@@ -171,6 +171,15 @@ If latency is recorded, it MUST be labelled **cue-to-reveal time**. It MUST NOT 
 Proposed logical shape:
 
 ```ts
+type RecallItemSnapshot = {
+  routeStepId: string;
+  palaceId: string;
+  markerId: string;
+  promptSnapshot: string;
+  answerSnapshot: string;
+  itemFingerprint: string;
+};
+
 type RecallSession = {
   id: string;
   routeId: string;
@@ -178,9 +187,12 @@ type RecallSession = {
   routeSnapshot: RecallRouteStep[];
   state: "in_progress" | "completed" | "abandoned";
   startedAt: string;
-  endedAt?: string;
+  endedAt: string | null;
   currentStepIndex: number;
+  recallSnapshots: RecallItemSnapshot[]; // immutable prompt and answer snapshots required to resume
   attempts: RecallAttempt[];
+  skippedStepIds: string[]; // route-step IDs deliberately skipped without recall
+  traversedGatewayStepIds: string[];
   schemaVersion: 1;
 };
 
@@ -193,7 +205,7 @@ type RecallAttempt = {
   itemFingerprint: string;
   promptSnapshot: string;
   confidence: "low" | "medium" | "high" | null;
-  grade: "correct" | "partial" | "missed" | "skipped";
+  grade: "correct" | "partial" | "missed";
   cueToRevealMs?: number;
   attemptedAt: string;
 };
@@ -204,9 +216,10 @@ Implementation may normalize this representation into separate arrays/maps for e
 ### Required data invariants
 
 - IDs are stable strings; timestamps are ISO 8601 UTC strings.
-- There is at most one graded recall attempt for a given `(sessionId, markerId)`.
+- There is at most one scored recall attempt for a given `(sessionId, palaceId, markerId)`.
 - Gateway steps never create `RecallAttempt` records.
-- Only a completed self-grade or explicit skip creates an attempt record.
+- A completed self-grade creates a scored attempt. An explicit skip creates a separate skip outcome and MUST NOT be treated as a failed retrieval.
+- Skips are visible in session summaries but excluded from accuracy and frequently-missed denominators.
 - An abandoned session keeps its graded attempts; ungraded current stops are not treated as misses.
 - A session summary is derived from its attempt events, not independently edited totals.
 - A content fingerprint identifies the exact cue/answer revision used. It is a version key, not a security hash.
@@ -215,6 +228,7 @@ Implementation may normalize this representation into separate arrays/maps for e
 ### Local persistence and backup
 
 - The initial implementation MUST remain local-only and use browser storage behind a small repository/storage boundary rather than scattering direct storage calls through UI components.
+- A session snapshot MUST retain the exact prompt and answer text used at session start so that refreshing or editing a source note cannot alter an in-progress test. Typed free-text responses remain transient and are not persisted by default.
 - Existing `locicanvas_v2_data` palace data MUST remain readable and MUST NOT be destructively rewritten merely to add recall.
 - Store recall data under a separate versioned key (proposed: `locicanvas_recall_v1_data`) in v1. This isolates the first recall migration from existing palace persistence.
 - JSON backup/export MUST include recall route definitions and session/attempt history. Import MUST validate both palace and recall payloads before replacing either. There MUST be no partial restore where palace data changes but recall data fails validation.
@@ -235,27 +249,27 @@ Use explicit self-grade weights:
 | Correct | 1.0 |
 | Partial | 0.5 |
 | Missed | 0.0 |
-| Skipped | 0.0 |
+| Skipped | Excluded |
 
 ```
 sessionScorePercent =
-  100 * sum(gradeWeight(attempt)) / numberOfGradedRecallAttempts
+  100 * sum(gradeWeight(correct/partial/missed attempts)) / numberOfScoredRecallAttempts
 ```
 
-A session with no graded attempts has no score (display "No recall attempts recorded"), not 0% or 100%.
+A session with no scored recall attempts has no score (display "No scored recall attempts"), not 0% or 100%.
 
-Also show counts for correct, partial, missed, skipped, and total recall attempts. Do not include gateway steps in the denominator. Do not round before aggregation; round only for display.
+Also show counts for correct, partial, missed, skipped, and total recall stops. Do not include gateway steps or skipped stops in the score denominator. Do not round before aggregation; round only for display. A skipped stop is not evidence of an unsuccessful retrieval.
 
 ### 6.2 Item revision and recent-window calculation
 
 For each `(markerId, itemFingerprint)`:
-1. Select the most recent **5 graded exposures** from distinct sessions, limited to the last **60 days**.
+1. Select the most recent **5 scored exposures** (correct / partial / missed) from distinct sessions, limited to the last **60 days**. Explicit skips are excluded.
 2. Require at least **3** exposures before assigning a weakness status.
 3. Compute weighted miss rate:
 
 ```
 missRate =
-  (missed + skipped + 0.5 * partial) / gradedExposures
+  (missed + 0.5 * partial) / scoredExposures
 ```
 
 4. Flag the item as **Frequently missed** when `missRate >= 0.50` and there are at least 3 eligible exposures.
@@ -267,7 +281,7 @@ Default display MUST expose the numerator, denominator, time window, and item re
 
 ### 6.3 Worked example
 
-For the last five eligible exposures: missed, partial, correct, missed, correct:
+For the last five scored exposures: missed, partial, correct, missed, correct:
 
 ```
 missRate = (1 + 0.5 + 0 + 1 + 0) / 5 = 0.50
@@ -280,7 +294,7 @@ For only two exposures, even if both are missed, the UI MUST say "Not enough his
 ### 6.4 Anti-distortion safeguards
 
 - Count at most one recall attempt per note per session.
-- Do not count route previews, design-mode interactions, or ungraded abandoned steps.
+- Do not count route previews, design-mode interactions, explicit skips, or ungraded abandoned steps.
 - Do not mix attempts from different note fingerprints.
 - Do not count gateway navigation as recall.
 - Keep self-grade labels visible in all reports; do not call the metric objective accuracy.
@@ -354,7 +368,26 @@ The repository currently uses Node's built-in `node:test` for domain tests and d
 - [ ] Unit, integration, lint, and production build checks pass.
 - [ ] README continues to describe the application as local-only until Auth, database persistence, and Storage are actually implemented and verified.
 
-## 10. Evaluation: prove learning value, not just usability
+## 10. Evidence boundary and research-derived design rationale
+
+The research supports the direction but does not validate this particular implementation:
+
+- A 2021 meta-analysis of 13 randomized trials reported a medium effect for the method of loci (Hedges' g = 0.65), while noting high experimental-bias risk in most included studies and a predominantly university-based sample.
+- A 2025 systematic review/meta-analysis reported promising method-of-loci effects, but 89.2% of experiments were rated at high risk of bias and the GRADE certainty for young-adult evidence was very low. Reported effectiveness must not be generalized as a guaranteed benefit for all learners or note types.
+- A 2021 review of retrieval practice describes benefits across material types, ages, learner abilities, and test formats. A 2026 classroom meta-analysis (53 studies; 7,303 participants) reported average effects for retrieval practice, distributed practice, and interleaving, with outcomes moderated by knowledge type, test format, retention interval, and feedback conditions.
+- Confidence judgements can provide useful metacognitive information, but their usefulness depends on when and how they are elicited. Guided Recall therefore records confidence after an actual retrieval attempt and before answer reveal, keeping confidence separate from the self-grade.
+
+These findings justify prioritizing genuine retrieval and answer feedback. They do **not** establish the optimal 5-exposure window, 60-day lookback, 3-exposure minimum, 50% flag threshold, 0.5 partial-credit weight, route length, animation, or particular UI design. Those are transparent product heuristics requiring empirical evaluation.
+
+### Selected references
+
+1. Qureshi et al. (2021). *The effectiveness of the loci method as a mnemonic device: Meta-analysis.* [PubMed](https://pubmed.ncbi.nlm.nih.gov/33535926/).
+2. Ondřej et al. (2025). *The method of loci in the context of psychological research: A systematic review and meta-analysis.* British Journal of Psychology. [DOI](https://doi.org/10.1111/bjop.12799).
+3. McDermott (2021). *Practicing Retrieval Facilitates Learning.* Annual Review of Psychology, 72, 609–633. [DOI](https://doi.org/10.1146/annurev-psych-010419-051019).
+4. Camp et al. (2026). *A Meta-Analysis of the Effectiveness and Boundary Conditions of Retrieval Practice, Distributed Practice, and Interleaved Practice in Authentic School Classrooms.* Educational Psychology Review. [DOI](https://doi.org/10.1007/s10648-026-10225-5).
+5. *Testing and metacognition: retrieval practice effects on metacognitive monitoring in learning from text* (2018). [PubMed](https://pubmed.ncbi.nlm.nih.gov/30074864/).
+
+## 11. Evaluation: prove learning value, not just usability
 
 The first release is a functional baseline, not proof of educational efficacy.
 
@@ -367,6 +400,6 @@ A later opt-in evaluation SHOULD compare:
 
 Where feasible, use the same content and comparable item difficulty across conditions (for example, guided loci recall versus reviewing the same notes without route traversal). Predefine inclusion rules and report sample size, missing follow-ups, and uncertainty. Do not infer that the method works from engagement, self-ratings, or a small uncontrolled pilot alone.
 
-## 11. Decision boundary
+## 12. Decision boundary
 
-This document is the implementation contract for Guided Recall v1. Research findings may refine defaults, terminology, or optional experiments, but any change to route invariants, scoring weights, weakness thresholds, data retention, or privacy behavior MUST be recorded as a versioned decision with updated tests. The final research report should be reconciled against this contract before the first feature implementation PR is opened.
+This document is the implementation contract for Guided Recall v1. Research findings may refine defaults, terminology, or optional experiments, but any change to route invariants, scoring weights, weakness thresholds, data retention, or privacy behavior MUST be recorded as a versioned decision with updated tests. The full Deep Research report should still be reconciled before adaptive scheduling, experimental features, or claims of learning efficacy. The deterministic domain model in PR 1 does not encode claims about optimal learning intervals or effect sizes.
