@@ -181,6 +181,13 @@ test('cannot start an invalid route or a session with invalid metadata', () => {
     () => createRecallSessionSnapshot(makeRoute(), palaces, { sessionId: '', now: '2026-11-03T12:00:00Z' }),
     /session ID is required/,
   );
+  assert.throws(
+    () => createRecallSessionSnapshot(makeRoute(), palaces, {
+      sessionId: 'session-offset',
+      now: '2026-11-03T12:00:00+00:00',
+    }),
+    /valid ISO timestamp/,
+  );
 });
 
 test('records exactly one self-grade for the current recall stop', () => {
