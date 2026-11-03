@@ -24,6 +24,8 @@ LociCanvas is a visual digital memory palace based on the Method of Loci. Create
 - Responsive, full-width editor dialogs on smaller screens.
 - Validation of saved palace/marker structure and broken gateway references.
 - Guided Recall route authoring: create, rename, edit, and delete routes; add existing note and gateway markers; reorder steps; and see broken references marked for repair.
+- Guided Recall runner with answer-hidden recall cues, optional private response drafting, confidence-before-reveal, explicit self-grading/skips, and gateway traversal.
+- Persisted active-session snapshots with resume after refresh; completed and abandoned session snapshots and self-reported attempts are included in backups.
 
 ## Technology
 
@@ -71,7 +73,8 @@ Data is still local to a browser profile and origin. It is not synchronized acro
 - `src/domain/palaceModel.test.js`: tests for domain operations and data validation.
 - `src/domain/recallModel.js` and `src/domain/recallModel.test.js`: route validation, session domain logic, scoring, and recent-performance algorithms.
 - `src/domain/recallStorage.js` and `src/domain/recallStorage.test.js`: versioned recall storage, combined backup validation, legacy import, and two-key rollback tests.
-- `src/GuidedRecallManager.jsx`: Guided Recall route authoring interface.
+- `src/GuidedRecallManager.jsx`: Guided Recall route authoring and resumable-session entry points.
+- `src/GuidedRecallRunner.jsx`: guided recall runner, answer reveal, confidence, self-grading, skip, gateway entry, and session results.
 - `browser-tests/guided-recall.browser.js`: Chromium end-to-end acceptance for a gateway-connected route, refresh persistence, and backup round-trip.
 - `vite.config.js`: Vite configuration.
 - `IMPROVEMENT_PLAN.md`: phased multi-user upgrade plan and architecture decisions.
