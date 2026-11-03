@@ -175,6 +175,16 @@ test('session snapshots preserve route and note text as they existed at start', 
   assert.equal(session.currentStepIndex, 0);
   assert.equal(session.recallSnapshots[0].promptSnapshot, 'Neuron');
   assert.equal(session.recallSnapshots[0].answerSnapshot, 'A neuron is an excitable cell.');
+  assert.deepEqual(session.locationSnapshots[0], {
+    routeStepId: 'step-1',
+    kind: 'recall',
+    palaceId: 'library',
+    palaceNameSnapshot: 'Library',
+    markerId: 'note-1',
+    markerTitleSnapshot: 'Neuron',
+    markerXSnapshot: 20,
+    markerYSnapshot: 30,
+  });
   assert.equal(session.recallSnapshots[0].itemFingerprint, createRecallItemFingerprint('Neuron', 'A neuron is an excitable cell.'));
 
   const editedPalaces = structuredClone(palaces);
