@@ -464,6 +464,7 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
                   {routeStatuses.get(selectedRoute.id)?.errors.map((error) => error.message).join(' ')}
                 </Alert>
               )}
+              {formError && <Alert severity="error">{formError}</Alert>}
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                 <Button
                   variant="contained"
