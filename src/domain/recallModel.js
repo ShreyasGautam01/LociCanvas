@@ -25,7 +25,7 @@ function isNonEmptyString(value) {
 
 function isValidTimestamp(value) {
   return typeof value === 'string'
-    && /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$/.test(value)
+    && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)
     && Number.isFinite(Date.parse(value));
 }
 
@@ -393,7 +393,10 @@ export function calculateRecallSessionScore(session) {
   }
 
   const scoredAttemptCount = counts.correct + counts.partial + counts.missed;
-  const weightedPoints = counts.correct + (counts.partial * RECALL_DEFAULTS.partialCredit);
+  const weightedPoints = Object.entries(counts).reduce(
+    (sum, [grade, count]) => sum + (count * GRADE_WEIGHTS[grade]),
+    0,
+  );
   const skippedCount = Array.isArray(session?.skippedStepIds) ? session.skippedStepIds.length : 0;
   const recallStopCount = Array.isArray(session?.routeSnapshot)
     ? session.routeSnapshot.filter((step) => step?.kind === 'recall').length
@@ -462,7 +465,8 @@ export function calculateItemRecentPerformance(attempts, {
   for (const attempt of distinctSessionAttempts) counts[attempt.grade] += 1;
 
   const scoredExposures = distinctSessionAttempts.length;
-  const weightedMisses = counts.missed + (counts.partial * RECALL_DEFAULTS.partialCredit);
+  const weightedMisses = (counts.missed * (1 - GRADE_WEIGHTS.missed))
+    + (counts.partial * (1 - GRADE_WEIGHTS.partial));
   const missRate = scoredExposures === 0 ? null : weightedMisses / scoredExposures;
   let status = 'not_enough_history';
   if (scoredExposures >= minimumExposures) {
