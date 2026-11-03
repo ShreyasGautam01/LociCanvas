@@ -186,9 +186,10 @@ export function createRecallItemFingerprint(title, content) {
   ]);
   let hash = 0xcbf29ce484222325n;
   const prime = 0x100000001b3n;
+  const bytes = new TextEncoder().encode(source);
 
-  for (let index = 0; index < source.length; index += 1) {
-    hash ^= BigInt(source.charCodeAt(index));
+  for (const byte of bytes) {
+    hash ^= BigInt(byte);
     hash = BigInt.asUintN(64, hash * prime);
   }
 
