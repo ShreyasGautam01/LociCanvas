@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { chromium } from 'playwright';
 
 const HOST = 'http://127.0.0.1:4173';
@@ -66,6 +68,7 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     await page.getByRole('button', { name: 'Guided Recall routes' }).click();
     await page.getByText('Browser integration route').waitFor();
     await page.getByText('2 recall stops · 1 gateways').waitFor();
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
@@ -77,6 +80,30 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     assert.equal(backup.recall.routes.length, 1);
     assert.equal(backup.recall.routes[0].name, 'Browser integration route');
     assert.deepEqual(backup.recall.routes[0].steps.map((step) => step.kind), ['recall', 'gateway', 'recall']);
+
+    page.on('dialog', (dialog) => dialog.accept());
+    await page.getByRole('button', { name: 'Import backup' }).click();
+    await page.locator('input[aria-label="Choose LociCanvas JSON backup file"]').setInputFiles(downloadPath);
+    await page.getByRole('button', { name: 'Validate and Import' }).click();
+    await page.getByRole('button', { name: 'Guided Recall routes' }).click();
+    await page.getByText('Browser integration route').waitFor();
+
+    const tempDirectory = await mkdtemp(join(tmpdir(), 'locicanvas-legacy-'));
+    try {
+      const legacyPath = join(tempDirectory, 'palace-only-backup.json');
+      await writeFile(legacyPath, JSON.stringify({
+        schemaVersion: 1,
+        palaces: backup.palaces,
+      }));
+      await page.getByRole('button', { name: 'Close', exact: true }).click();
+      await page.getByRole('button', { name: 'Import backup' }).click();
+      await page.locator('input[aria-label="Choose LociCanvas JSON backup file"]').setInputFiles(legacyPath);
+      await page.getByRole('button', { name: 'Validate and Import' }).click();
+      await page.getByRole('button', { name: 'Guided Recall routes' }).click();
+      await page.getByText('No routes yet. Create one to connect existing memory markers into a recall sequence.').waitFor();
+    } finally {
+      await rm(tempDirectory, { recursive: true, force: true });
+    }
 
     await context.close();
   } finally {
