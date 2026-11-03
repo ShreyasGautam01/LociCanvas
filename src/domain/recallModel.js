@@ -34,7 +34,8 @@ function findPalace(palaces, palaceId) {
 }
 
 function findMarker(palace, markerId) {
-  return palace?.items?.find((item) => item?.id === markerId) ?? null;
+  if (!Array.isArray(palace?.items)) return null;
+  return palace.items.find((item) => item?.id === markerId) ?? null;
 }
 
 function routeError(code, path, message) {
