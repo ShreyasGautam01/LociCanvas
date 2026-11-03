@@ -66,6 +66,8 @@ Data is still local to a browser profile and origin. It is not synchronized acro
 - `src/domain/palaceModel.test.js`: tests for domain operations and data validation.
 - `vite.config.js`: Vite configuration.
 - `IMPROVEMENT_PLAN.md`: phased multi-user upgrade plan and architecture decisions.
+- `docs/GUIDED_RECALL_V1_SPEC.md`: enforceable product, data, scoring, persistence, accessibility, and test contract for Guided Recall.
+- `docs/GUIDED_RECALL_V1_TASKS.md`: implementation slices and release gates for Guided Recall.
 - `supabase/migrations/`: version-controlled PostgreSQL schema and RLS policies.
 - `supabase/tests/`: disposable PostgreSQL setup plus migration/ownership tests run in CI.
 - `SUPABASE_SETUP.md`: database setup, migration deployment, and live cloud-security verification checklist.
