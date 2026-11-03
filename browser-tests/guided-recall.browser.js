@@ -65,10 +65,39 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     await page.getByText('2 recall stops · 1 gateways').waitFor();
     assert.equal(await page.getByText('Browser integration route').count() > 0, true);
 
+    // Start the runner and verify that the saved answer is absent before reveal.
+    await page.getByRole('button', { name: 'Start recall' }).click();
+    await page.getByText('Philosophy of Loci', { exact: true }).waitFor();
+    assert.equal(await page.getByText('The method of loci is a strategy for memory enhancement', { exact: false }).count(), 0);
+
+    await page.getByRole('button', { name: "I've attempted recall" }).click();
+    await page.getByRole('radio', { name: 'Low' }).check();
+    await page.getByRole('button', { name: 'Reveal answer' }).click();
+    await page.getByText('The method of loci is a strategy for memory enhancement', { exact: false }).waitFor();
+    await page.getByRole('button', { name: 'Correct', exact: true }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText('Enter gateway to The Oak Desk').waitFor();
+
+    // Exit without abandoning; the saved session must be resumable after a reload.
+    await page.getByRole('button', { name: 'Exit to routes' }).click();
+    await page.getByText('Resume a session').waitFor();
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
     await page.reload();
     await page.getByRole('button', { name: 'Guided Recall routes' }).click();
-    await page.getByText('Browser integration route').waitFor();
-    await page.getByText('2 recall stops · 1 gateways').waitFor();
+    await page.getByRole('button', { name: 'Resume' }).click();
+    await page.getByText('Enter gateway to The Oak Desk').waitFor();
+
+    await page.getByRole('button', { name: 'Enter gateway to The Oak Desk' }).click();
+    await page.getByText('Draft Paper', { exact: true }).waitFor();
+    await page.getByRole('button', { name: "I've attempted recall" }).click();
+    await page.getByRole('button', { name: 'Skip confidence rating' }).click();
+    await page.getByRole('button', { name: 'Reveal answer' }).click();
+    await page.getByText('Finish the project.', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Missed', exact: true }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText('Session completed', { exact: true }).waitFor();
+    await page.getByText('50%', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Return to routes' }).click();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
 
     const [download] = await Promise.all([
@@ -81,6 +110,11 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     assert.equal(backup.recall.routes.length, 1);
     assert.equal(backup.recall.routes[0].name, 'Browser integration route');
     assert.deepEqual(backup.recall.routes[0].steps.map((step) => step.kind), ['recall', 'gateway', 'recall']);
+    assert.equal(backup.recall.sessions.length, 1);
+    assert.equal(backup.recall.sessions[0].state, 'completed');
+    assert.equal(backup.recall.sessions[0].attempts.length, 2);
+    assert.equal(backup.recall.attempts.length, 2);
+    assert.deepEqual(backup.recall.sessions[0].attempts.map((attempt) => attempt.grade), ['correct', 'missed']);
 
     page.on('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Import backup' }).click();
