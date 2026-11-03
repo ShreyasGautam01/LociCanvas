@@ -25,6 +25,8 @@ import {
 import { createStableId } from './domain/palaceModel.js';
 import { validateRecallRoute } from './domain/recallModel.js';
 
+const EMPTY_ROUTES = Object.freeze([]);
+
 function getMarker(palaces, step) {
   const palace = palaces.find((candidate) => candidate.id === step.palaceId);
   const marker = palace?.items?.find((candidate) => candidate.id === step.markerId);
@@ -45,7 +47,7 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
   const [stepSelection, setStepSelection] = useState('');
   const [formError, setFormError] = useState('');
 
-  const routes = Array.isArray(recallData?.routes) ? recallData.routes : [];
+  const routes = Array.isArray(recallData?.routes) ? recallData.routes : EMPTY_ROUTES;
   const routeStatuses = useMemo(
     () => new Map(routes.map((route) => [route.id, getRouteValidation(route, palaces)])),
     [routes, palaces],
