@@ -38,13 +38,17 @@ const route = {
 class MemoryStorage {
   values = new Map();
   failOnKey = null;
+  failCount = 0;
 
   getItem(key) {
     return this.values.has(key) ? this.values.get(key) : null;
   }
 
   setItem(key, value) {
-    if (key === this.failOnKey) throw new Error('QuotaExceededError');
+    if (key === this.failOnKey && this.failCount > 0) {
+      this.failCount -= 1;
+      throw new Error('QuotaExceededError');
+    }
     this.values.set(key, String(value));
   }
 
@@ -125,6 +129,7 @@ test('atomic backup persistence rolls both keys back when the recall write fails
   storage.setItem('palace-key', 'old-palaces');
   storage.setItem(RECALL_STORAGE_KEY, 'old-recall');
   storage.failOnKey = RECALL_STORAGE_KEY;
+  storage.failCount = 1;
 
   assert.throws(() => persistRecallBackupAtomically(storage, {
     palaceKey: 'palace-key',
