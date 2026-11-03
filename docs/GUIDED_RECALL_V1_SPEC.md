@@ -171,6 +171,15 @@ If latency is recorded, it MUST be labelled **cue-to-reveal time**. It MUST NOT 
 Proposed logical shape:
 
 ```ts
+type RecallItemSnapshot = {
+  routeStepId: string;
+  palaceId: string;
+  markerId: string;
+  promptSnapshot: string;
+  answerSnapshot: string;
+  itemFingerprint: string;
+};
+
 type RecallSession = {
   id: string;
   routeId: string;
@@ -178,11 +187,12 @@ type RecallSession = {
   routeSnapshot: RecallRouteStep[];
   state: "in_progress" | "completed" | "abandoned";
   startedAt: string;
-  endedAt?: string;
+  endedAt: string | null;
   currentStepIndex: number;
   recallSnapshots: RecallItemSnapshot[]; // immutable prompt and answer snapshots required to resume
   attempts: RecallAttempt[];
-  skippedStepIds: string[]; // navigation-only outcomes, never scored
+  skippedStepIds: string[]; // route-step IDs deliberately skipped without recall
+  traversedGatewayStepIds: string[];
   schemaVersion: 1;
 };
 
@@ -206,7 +216,7 @@ Implementation may normalize this representation into separate arrays/maps for e
 ### Required data invariants
 
 - IDs are stable strings; timestamps are ISO 8601 UTC strings.
-- There is at most one graded recall attempt for a given `(sessionId, markerId)`.
+- There is at most one scored recall attempt for a given `(sessionId, palaceId, markerId)`.
 - Gateway steps never create `RecallAttempt` records.
 - A completed self-grade creates a scored attempt. An explicit skip creates a separate skip outcome and MUST NOT be treated as a failed retrieval.
 - Skips are visible in session summaries but excluded from accuracy and frequently-missed denominators.
