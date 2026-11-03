@@ -230,7 +230,8 @@ Implementation may normalize this representation into separate arrays/maps for e
 - The initial implementation MUST remain local-only and use browser storage behind a small repository/storage boundary rather than scattering direct storage calls through UI components.
 - A session snapshot MUST retain the exact prompt and answer text used at session start so that refreshing or editing a source note cannot alter an in-progress test. Typed free-text responses remain transient and are not persisted by default.
 - Existing `locicanvas_v2_data` palace data MUST remain readable and MUST NOT be destructively rewritten merely to add recall.
-- Store recall data under a separate versioned key (proposed: `locicanvas_recall_v1_data`) in v1. This isolates the first recall migration from existing palace persistence.
+- Store recall data under the separate versioned key `locicanvas_recall_v1_data` in v1. This isolates recall migrations from existing palace persistence. The current route-authoring slice stores `{ schemaVersion, routes, sessions: [], attempts: [] }`; session and attempt arrays are reserved for later slices and are not yet populated.
+- The current recall-route payload has a conservative 512 KiB estimated local-storage limit. It is separate from the existing 4 MiB palace-collection budget; future session-history growth must use explicit quota handling and must never silently prune history.
 - JSON backup/export MUST include recall route definitions and session/attempt history. Import MUST validate both palace and recall payloads before replacing either. There MUST be no partial restore where palace data changes but recall data fails validation.
 - A failed local write MUST produce a visible unsaved/error state. The UI MUST NOT claim a session was saved before storage confirms the write.
 - Local-only disclosures MUST state that clearing browser data can remove routes and histories too.
@@ -349,7 +350,7 @@ No Guided Recall implementation is complete until all applicable gates pass.
 - Verify session history/weak-item UI matches domain calculations.
 - Verify keyboard-only and reduced-motion paths.
 
-The repository currently uses Node's built-in `node:test` for domain tests and does not yet declare a browser E2E test framework. The implementation plan must select and add a UI test harness only when its first UI slice begins; it must not claim browser-level coverage from domain tests alone.
+The repository uses Node's built-in `node:test` for domain tests and now includes a Playwright 1.64.1 Chromium acceptance harness. CI installs the browser runner transiently after `npm ci` (it is not an application runtime dependency) and executes `npm run test:e2e` against the production preview build. The current browser test covers route creation through a real gateway, local persistence after refresh, combined backup export/import, and legacy palace-only import. Broken-reference repair UI, storage-quota interaction, keyboard-only navigation, reduced motion, narrow mobile layout, and runner behavior still require additional browser acceptance coverage; domain tests must not be treated as proof of those UI paths.
 
 ### Release acceptance checklist
 
