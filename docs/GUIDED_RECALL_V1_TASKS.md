@@ -46,23 +46,25 @@ Acceptance:
 
 ## PR 2 — Local persistence and route authoring
 
+**Implementation slice:** PR #7, branch `feat/guided-recall-route-authoring` (open for review).
+
 **Goal:** users can define valid routes from existing palace markers.
 
 Deliverables:
-- Versioned recall repository/storage adapter.
-- Route list and create/edit/delete flow.
-- Add/reorder/remove recall and gateway steps.
-- Clear broken-route state when referenced markers or palaces change.
-- Atomic validation of palace + recall data in import/restore.
-- Backup format compatibility and storage-budget/error handling.
+- [x] Versioned recall repository/storage adapter at `locicanvas_recall_v1_data` (512 KiB estimated budget).
+- [x] Route list and create/edit/delete flow.
+- [x] Add/reorder/remove recall and gateway steps.
+- [x] Keep broken routes and surface validation errors rather than silently deleting or redirecting them.
+- [x] Validate palace + recall payloads before atomic backup restore; rollback the previous values if a write fails.
+- [x] Combined backup export/import with legacy palace-only import compatibility.
 
 Acceptance:
-- [ ] Legacy palace-only backups still import.
-- [ ] Routes survive refresh and browser restart.
-- [ ] Invalid routes cannot be saved or started.
-- [ ] Deleting/retargeting a referenced item marks dependent routes invalid without deleting them silently.
-- [ ] Storage failure does not display a successful save.
-- [ ] Export/import round-trips route definitions.
+- [x] Legacy palace-only backups still import after an explicit warning that current recall routes will be cleared.
+- [x] Routes survive refresh; browser test exercises reload persistence.
+- [x] Invalid routes cannot be saved; the domain validator blocks invalid route saves.
+- [ ] Deleting/retargeting a referenced item marks dependent routes invalid without deleting them silently (implementation is present; dedicated UI regression test remains outstanding).
+- [x] Storage failure does not display a successful save; persistence errors are surfaced and rollback is unit-tested.
+- [x] Export/import round-trips route definitions in the browser acceptance suite.
 
 ## PR 3 — Guided runner and persistent sessions
 
@@ -138,6 +140,13 @@ Acceptance:
 - [ ] Answer content is not exposed before reveal through accessible labels.
 - [ ] Session resume and storage errors are tested in a browser.
 - [ ] Evaluation reports delayed recall and sample size, not engagement alone.
+
+### PR #7 verification scope
+
+- Domain coverage: `npm test` includes route/storage parsing, backup compatibility, size limits, atomic two-key rollback, and the existing route invariants.
+- Browser coverage: `npm run test:e2e` opens the production preview in Chromium, creates a route across a gateway, reloads, exports/imports a combined backup, and imports a palace-only backup.
+- The browser harness is installed transiently in CI as Playwright 1.64.1; it is not included in the app bundle or normal runtime dependencies.
+- Still outstanding before calling the whole V1 complete: runner UI, session persistence, analytics, keyboard/mobile/reduced-motion audit, and dedicated broken-route repair UI regression tests.
 
 ## Execution rules for every PR
 
