@@ -717,7 +717,7 @@ export default function App() {
             </Box>
 
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', pointerEvents: 'auto' }}>
-              <Tooltip title="Your palaces are saved only in this browser. Export a backup before clearing site data. Cloud sync is not enabled yet.">
+              <Tooltip title="Your palaces and Guided Recall routes are saved only in this browser. Export a backup before clearing site data. Cloud sync is not enabled yet.">
                 <Chip
                   label="Local only"
                   size="small"
@@ -1000,7 +1000,7 @@ export default function App() {
               </Box>
             </Stack>
             <Alert severity="info" sx={{ mt: 2.5 }}>
-              Your collection is currently stored only in this browser. It does not sync across devices yet. Export a backup before clearing browser data.
+              Your palace collection and Guided Recall routes are stored only in this browser. They do not sync across devices yet. Export a backup before clearing browser data.
             </Alert>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap', mt: 3 }}>
               <Button onClick={dismissWelcome} color="inherit">Explore the sample</Button>
