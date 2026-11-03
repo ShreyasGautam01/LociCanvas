@@ -360,7 +360,7 @@ test('frequently-missed algorithm avoids flags with fewer than three exposures',
 test('frequently-missed algorithm uses only the latest five unique sessions', () => {
   const attempts = Array.from({ length: 7 }, (_, index) => makeAttempt({
     sessionId: `s-${index}`,
-    grade: index < 5 ? 'correct' : 'missed',
+    grade: index < 2 ? 'missed' : 'correct',
     attemptedAt: new Date(Date.parse('2026-11-03T12:00:00.000Z') - ((6 - index) * 60_000)).toISOString(),
   }));
   const result = calculateItemRecentPerformance(attempts, {
