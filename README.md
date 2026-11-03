@@ -72,7 +72,7 @@ Data is still local to a browser profile and origin. It is not synchronized acro
 - `src/domain/recallModel.js` and `src/domain/recallModel.test.js`: route validation, session domain logic, scoring, and recent-performance algorithms.
 - `src/domain/recallStorage.js` and `src/domain/recallStorage.test.js`: versioned recall storage, combined backup validation, legacy import, and two-key rollback tests.
 - `src/GuidedRecallManager.jsx`: Guided Recall route authoring interface.
-- `tests/browser/guided-recall.test.js`: Chromium end-to-end acceptance for a gateway-connected route, refresh persistence, and backup round-trip.
+- `browser-tests/guided-recall.browser.js`: Chromium end-to-end acceptance for a gateway-connected route, refresh persistence, and backup round-trip.
 - `vite.config.js`: Vite configuration.
 - `IMPROVEMENT_PLAN.md`: phased multi-user upgrade plan and architecture decisions.
 - `docs/GUIDED_RECALL_V1_SPEC.md`: enforceable product, data, scoring, persistence, accessibility, and test contract for Guided Recall.
