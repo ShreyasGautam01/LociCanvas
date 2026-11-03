@@ -185,6 +185,18 @@ type RecallSession = {
   routeId: string;
   routeNameSnapshot: string;
   routeSnapshot: RecallRouteStep[];
+  locationSnapshots?: Array<{
+    routeStepId: string;
+    kind: "recall" | "gateway";
+    palaceId: string;
+    palaceNameSnapshot: string;
+    markerId: string;
+    markerTitleSnapshot: string;
+    markerXSnapshot: number;
+    markerYSnapshot: number;
+    targetPalaceId?: string;
+    targetPalaceNameSnapshot?: string;
+  }>; // presentation metadata; background images remain referenced from palace data
   state: "in_progress" | "completed" | "abandoned";
   startedAt: string;
   endedAt: string | null;
