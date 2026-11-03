@@ -151,6 +151,10 @@ test('item fingerprints are stable for identical content and change when title o
   assert.equal(first, createRecallItemFingerprint('Neuron', 'An excitable cell'));
   assert.notEqual(first, createRecallItemFingerprint('Neuron', 'A different answer'));
   assert.notEqual(first, createRecallItemFingerprint('Neurone', 'An excitable cell'));
+  assert.equal(
+    createRecallItemFingerprint('न्यूरॉन', 'स्नायु कोशिका'),
+    createRecallItemFingerprint('न्यूरॉन', 'स्नायु कोशिका'),
+  );
   assert.match(first, /^fnv1a64:[0-9a-f]{16}$/);
 });
 
