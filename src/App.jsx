@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createStableId, isValidHttpsUrl, isValidImageSource, canPersistPalacesLocally, parsePalaceStorage, pointerToCanvasPercent, moveMarkerInPalaces, serializePalaceStorage, searchPalaces } from './domain/palaceModel.js';
+import GuidedRecallManager from './GuidedRecallManager.jsx';
+import { loadRecallStorage, parseRecallBackup, persistRecallBackupAtomically, persistRecallData, serializeRecallBackup, RECALL_STORAGE_KEY } from './domain/recallStorage.js';
 import {
   Box,
   Typography,
@@ -323,8 +325,10 @@ const Marker = ({ item, onClick, isEditMode, onDelete, onMove }) => {
 export default function App() {
   // --- GLOBAL DATA STATE ---
   const [initialStorage] = useState(() => loadSavedPalaces());
+  const [initialRecallStorage] = useState(() => loadRecallStorage());
   const [palaces, setPalaces] = useState(initialStorage.palaces);
-  const [storageIssue, setStorageIssue] = useState(initialStorage.issue);
+  const [recallData, setRecallData] = useState(initialRecallStorage.recallData);
+  const [storageIssue, setStorageIssue] = useState(initialStorage.issue || initialRecallStorage.issue);
   
   // --- NAVIGATION STATE ---
   const [navStack, setNavStack] = useState(() => [initialStorage.palaces[0]?.id || 'root']);
@@ -335,6 +339,7 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [recallOpen, setRecallOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(() => shouldShowWelcome());
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -510,9 +515,21 @@ export default function App() {
     setSettingsOpen(false);
   };
 
+  const handleSaveRecallData = (nextRecallData) => {
+    try {
+      persistRecallData(localStorage, nextRecallData);
+      setRecallData(nextRecallData);
+      setStorageIssue('Guided Recall routes saved in this browser.');
+      return true;
+    } catch (error) {
+      setStorageIssue(error instanceof Error ? error.message : 'Guided Recall routes could not be saved.');
+      return false;
+    }
+  };
+
   const handleExport = () => {
     try {
-      const blob = new Blob([serializePalaceStorage(palaces)], { type: 'application/json' });
+      const blob = new Blob([serializeRecallBackup(palaces, recallData)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -540,7 +557,7 @@ export default function App() {
 
     try {
       const text = await file.text();
-      parsePalaceStorage(text, { enforceLocalLimit: true }); // Validate before placing its contents in the editor.
+      parseRecallBackup(text, { enforceLocalLimit: true }); // Validate both datasets before placing the backup in the editor.
       setTransferText(text);
       setTransferError('');
       setStorageIssue(`Backup file loaded: ${file.name}. Review it, then choose Validate and Import.`);
@@ -553,14 +570,25 @@ export default function App() {
 
   const handleImport = () => {
     try {
-      const imported = parsePalaceStorage(transferText, { enforceLocalLimit: true });
-      if (!window.confirm('Import replaces the current local collection. Export a backup first if you need the current collection. Continue?')) return;
-      setPalaces(imported);
-      setNavStack([imported[0].id]);
+      const imported = parseRecallBackup(transferText, { enforceLocalLimit: true });
+      const confirmation = imported.hasRecall
+        ? 'Import replaces the current palace collection and Guided Recall routes. Export a backup first if you need the current data. Continue?'
+        : 'This older backup has no Guided Recall routes. Importing it will replace the palace collection and clear your current Guided Recall routes. Continue?';
+      if (!window.confirm(confirmation)) return;
+
+      persistRecallBackupAtomically(localStorage, {
+        palaceKey: STORAGE_KEY,
+        recallKey: RECALL_STORAGE_KEY,
+        palaces: imported.palaces,
+        recallData: imported.recallData,
+      });
+      setPalaces(imported.palaces);
+      setRecallData(imported.recallData);
+      setNavStack([imported.palaces[0].id]);
       setTransferOpen(false);
       setTransferText('');
       setTransferError('');
-      setStorageIssue('Collection imported.');
+      setStorageIssue('Palace collection and Guided Recall routes imported.');
     } catch (error) {
       setTransferError(error instanceof Error
         ? error.message
@@ -702,6 +730,11 @@ export default function App() {
                   <SearchIcon />
                 </IconButton>
               </Tooltip>
+              <Tooltip title="Create and manage Guided Recall routes">
+                <IconButton aria-label="Guided Recall routes" onClick={() => setRecallOpen(true)} sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }}>
+                  <BookIcon />
+                </IconButton>
+              </Tooltip>
               <Tooltip title="Export backup"><IconButton aria-label="Export backup" onClick={handleExport} sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }}><DownloadIcon /></IconButton></Tooltip>
               <Tooltip title="Import backup"><IconButton aria-label="Import backup" onClick={() => { setTransferText(''); setTransferError(''); setTransferOpen(true); }} sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }}><UploadIcon /></IconButton></Tooltip>
               <Button 
@@ -770,6 +803,15 @@ export default function App() {
 
         {/* --- DIALOGS --- */}
         
+        <Dialog open={recallOpen} onClose={() => setRecallOpen(false)} fullWidth maxWidth="lg" scroll="paper" PaperProps={{ sx: { bgcolor: '#121820', backgroundImage: 'none', border: '1px solid rgba(255,255,255,0.12)' } }}>
+          <GuidedRecallManager
+            palaces={palaces}
+            recallData={recallData}
+            onSave={handleSaveRecallData}
+            onClose={() => setRecallOpen(false)}
+          />
+        </Dialog>
+
         {/* 1. Context Menu */}
         <Menu
           open={contextMenu !== null}
