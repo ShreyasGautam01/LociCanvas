@@ -198,7 +198,7 @@ export function persistRecallBackupAtomically(storage, {
   try {
     storage.setItem(palaceKey, palaceValue);
     storage.setItem(recallKey, recallValue);
-  } catch (error) {
+  } catch {
     try {
       if (previousPalace === null) storage.removeItem(palaceKey);
       else storage.setItem(palaceKey, previousPalace);
