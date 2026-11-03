@@ -156,7 +156,8 @@ No separate public `users` table is needed for the MVP unless profile/preference
 - Background preview/fallback and clear feedback for invalid or unavailable URLs.
 - Improved editor (links and lightweight Markdown before attachments).
 - Undo/redo, recently opened palaces, and user preferences.
-- Optional recall mode and manually configured review reminders if user testing supports their value.
+- Guided Recall is now specified as a separate local-first feature contract in `docs/GUIDED_RECALL_V1_SPEC.md`; its implementation is split into enforceable PRs in `docs/GUIDED_RECALL_V1_TASKS.md`. The former generic recall-mode placeholder is superseded by that contract.
+- A review queue and adaptive replay remain a later phase, gated on research reconciliation and delayed-recall pilot evidence.
 
 **Explicitly deferred:** background uploads, real-time collaboration, public sharing/invitations, complex spaced repetition, and AI features. Introduce sharing only with a separately designed membership/role model and authorization tests.
 
