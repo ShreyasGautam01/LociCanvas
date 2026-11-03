@@ -23,6 +23,7 @@ LociCanvas is a visual digital memory palace based on the Method of Loci. Create
 - HTTPS URL validation plus allow-listed, size-bounded raster image data URLs for device-uploaded backgrounds.
 - Responsive, full-width editor dialogs on smaller screens.
 - Validation of saved palace/marker structure and broken gateway references.
+- Guided Recall route authoring: create, rename, edit, and delete routes; add existing note and gateway markers; reorder steps; and see broken references marked for repair.
 
 ## Technology
 
@@ -30,7 +31,7 @@ LociCanvas is a visual digital memory palace based on the Method of Loci. Create
 - Material UI 7
 - Framer Motion 12
 - Browser `localStorage` (current persistence; no accounts or cloud sync yet)
-- Node.js test runner for domain tests and PostgreSQL 17 CI checks for the migration, RLS, constraints, and gateway cleanup
+- Node.js test runner for domain tests, Playwright browser acceptance tests, and PostgreSQL 17 CI checks for the migration, RLS, constraints, and gateway cleanup
 
 ## Run locally
 
@@ -49,11 +50,15 @@ npm run lint
 npm run build
 ```
 
+The browser acceptance suite can be run locally after installing its CI-only test runner and Chromium: `npm install --no-save --package-lock=false playwright@1.64.1`, `npx playwright install chromium`, then `npm run test:e2e`. The runtime application does not depend on Playwright. GitHub Actions installs the pinned runner transiently and runs the suite against the production preview build.
+
 GitHub Actions also applies the SQL migration to a disposable PostgreSQL 17 database and checks the owner policies and integrity constraints. This uses a test-only substitute for the Supabase Auth helper; it does not replace a live Supabase project verification.
 
 ## Data persistence and recovery
 
-The application uses the browser storage key `locicanvas_v2_data`. New saves use an envelope containing `schemaVersion` and `palaces`; existing valid array-format data is still read and migrated on the next successful save.
+The application stores palace data under `locicanvas_v2_data` and Guided Recall routes under the separate versioned key `locicanvas_recall_v1_data`. Palace saves continue to use the existing envelope containing `schemaVersion` and `palaces`; existing valid array-format data is still read and migrated on the next successful save. Recall routes have an independent 512 KiB estimated local-storage budget and do not rewrite palace records.
+
+JSON backups contain both palace and recall data. Import validates both payloads before writing either key and attempts to restore both previous values if one storage write fails. Older palace-only backups remain supported; the import confirmation explains that their absence of recall data will clear the current routes.
 
 If saved data is malformed or fails structural validation, the app attempts to preserve the raw value under `locicanvas_v2_data_recovery` and loads the sample collection instead of silently treating malformed data as an empty collection. Browser storage may be unavailable or full, so this recovery copy is best-effort. Do not clear site data if you need to recover a previous collection.
 
@@ -64,6 +69,10 @@ Data is still local to a browser profile and origin. It is not synchronized acro
 - `src/App.jsx`: application UI and interactions.
 - `src/domain/palaceModel.js`: pure coordinate, movement, storage parsing/serialization, and gateway-cleanup operations.
 - `src/domain/palaceModel.test.js`: tests for domain operations and data validation.
+- `src/domain/recallModel.js` and `src/domain/recallModel.test.js`: route validation, session domain logic, scoring, and recent-performance algorithms.
+- `src/domain/recallStorage.js` and `src/domain/recallStorage.test.js`: versioned recall storage, combined backup validation, legacy import, and two-key rollback tests.
+- `src/GuidedRecallManager.jsx`: Guided Recall route authoring interface.
+- `browser-tests/guided-recall.browser.js`: Chromium end-to-end acceptance for a gateway-connected route, refresh persistence, and backup round-trip.
 - `vite.config.js`: Vite configuration.
 - `IMPROVEMENT_PLAN.md`: phased multi-user upgrade plan and architecture decisions.
 - `docs/GUIDED_RECALL_V1_SPEC.md`: enforceable product, data, scoring, persistence, accessibility, and test contract for Guided Recall.
