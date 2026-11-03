@@ -107,17 +107,19 @@ export function canPersistRecallLocally(recallData) {
   }
 }
 
-export function loadRecallStorage(storage = globalThis.localStorage) {
+export function loadRecallStorage(storage) {
+  let target = storage;
   try {
-    const raw = storage?.getItem(RECALL_STORAGE_KEY);
+    target = target ?? globalThis.localStorage;
+    const raw = target?.getItem(RECALL_STORAGE_KEY);
     if (!raw) return { recallData: createEmptyRecallData(), issue: '' };
     return { recallData: parseRecallStorage(raw), issue: '' };
   } catch (error) {
     let recoverySaved = false;
     try {
-      const raw = storage?.getItem(RECALL_STORAGE_KEY);
+      const raw = target?.getItem(RECALL_STORAGE_KEY);
       if (raw) {
-        storage.setItem(RECALL_RECOVERY_KEY, raw);
+        target.setItem(RECALL_RECOVERY_KEY, raw);
         recoverySaved = true;
       }
     } catch {
