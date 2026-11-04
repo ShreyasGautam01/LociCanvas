@@ -48,13 +48,14 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
   try {
     await waitForServer(server, APP_URL);
     browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 390, height: 844 } });
+    const context = await browser.newContext({ acceptDownloads: true });
     const page = await context.newPage();
 
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(APP_URL);
     await page.getByRole('button', { name: 'Explore the sample' }).click();
     await page.getByRole('button', { name: 'Guided Recall routes' }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
     const managerHeading = page.getByRole('heading', { name: 'Guided Recall routes' });
     await managerHeading.waitFor();
     assert.equal(
