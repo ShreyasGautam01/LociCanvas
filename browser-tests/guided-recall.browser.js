@@ -103,7 +103,7 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     await page.getByRole('heading', { name: 'Session history' }).waitFor();
     await page.getByText('Browser integration route', { exact: true }).first().waitFor();
     await page.getByText('50% self-reported score', { exact: true }).first().waitFor();
-    await page.getByRole('heading', { name: 'Frequently missed notes' }).waitFor();
+    await page.getByRole('heading', { name: 'Current note review signals' }).waitFor();
     await page.getByRole('button', { name: 'Review Draft Paper' }).click();
     await page.getByRole('heading', { name: 'Manual review' }).waitFor();
     await page.getByText('Draft Paper', { exact: true }).waitFor();
