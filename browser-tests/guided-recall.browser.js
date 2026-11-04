@@ -137,7 +137,7 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     assert.equal(backup.recall.sessions[1].routeNameSnapshot, 'Manual review');
     assert.equal(backup.recall.sessions[1].state, 'completed');
     assert.equal(backup.recall.sessions[1].attempts.length, 1);
-    assert.equal(backup.recall.sessions[1].attempts[0].markerId, 'draft-paper');
+    assert.equal(backup.recall.sessions[1].attempts[0].markerId, 'note-2');
     assert.equal(backup.recall.attempts.length, 3);
     assert.deepEqual(backup.recall.sessions[0].attempts.map((attempt) => attempt.grade), ['correct', 'missed']);
 
