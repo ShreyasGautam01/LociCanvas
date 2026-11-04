@@ -190,9 +190,11 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     // Exit without abandoning; the saved session must be resumable after a reload.
     await page.getByRole('button', { name: 'Exit to routes' }).click();
     await page.getByText('Resume a session').waitFor();
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     await page.reload();
     await page.getByRole('button', { name: 'Guided Recall routes' }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: 'Resume' }).click();
     await page.getByText('Enter gateway to The Oak Desk').waitFor();
 
@@ -238,8 +240,7 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     await page.getByRole('heading', { name: 'Learning analytics' }).waitFor();
     await page.getByText('Manual review', { exact: true }).first().waitFor();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
-
-
+    await page.setViewportSize({ width: 1280, height: 800 });
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
