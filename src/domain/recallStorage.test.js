@@ -10,6 +10,7 @@ import {
   persistRecallBackupAtomically,
   serializeRecallBackup,
   serializeRecallStorage,
+  upsertRecallSession,
 } from './recallStorage.js';
 
 const palaces = [
@@ -149,4 +150,94 @@ test('atomic backup persistence writes both keys when both operations succeed', 
   });
   assert.deepEqual(JSON.parse(storage.getItem('palace-key')).palaces, palaces);
   assert.deepEqual(parseRecallStorage(storage.getItem(RECALL_STORAGE_KEY)).routes, [route]);
+});
+
+
+const validSession = {
+  id: 'session-1',
+  schemaVersion: 1,
+  routeId: route.id,
+  routeNameSnapshot: route.name,
+  routeSnapshot: [...route.steps],
+  locationSnapshots: [{
+    routeStepId: 'step-1',
+    kind: 'recall',
+    palaceId: 'library',
+    palaceNameSnapshot: 'Library',
+    markerId: 'note-1',
+    markerTitleSnapshot: 'Neuron',
+    markerXSnapshot: 20,
+    markerYSnapshot: 30,
+  }],
+  recallSnapshots: [{
+    routeStepId: 'step-1',
+    palaceId: 'library',
+    markerId: 'note-1',
+    promptSnapshot: 'Neuron',
+    answerSnapshot: 'An excitable cell.',
+    itemFingerprint: 'fingerprint-v1',
+  }],
+  state: 'in_progress',
+  startedAt: '2026-11-04T10:10:00.000Z',
+  endedAt: null,
+  currentStepIndex: 0,
+  attempts: [],
+  skippedStepIds: [],
+  traversedGatewayStepIds: [],
+};
+
+const validAttempt = {
+  id: 'attempt-1',
+  sessionId: 'session-1',
+  routeStepId: 'step-1',
+  palaceId: 'library',
+  markerId: 'note-1',
+  itemFingerprint: 'fingerprint-v1',
+  promptSnapshot: 'Neuron',
+  confidence: 'high',
+  grade: 'correct',
+  attemptedAt: '2026-11-04T10:11:00.000Z',
+};
+
+test('upserts resumable sessions and mirrors their attempts into the flat history index', () => {
+  const initial = { ...createEmptyRecallData(), routes: [route] };
+  const started = upsertRecallSession(initial, validSession);
+  assert.equal(started.sessions.length, 1);
+  assert.equal(started.sessions[0].state, 'in_progress');
+  assert.deepEqual(started.attempts, []);
+
+  const gradedSession = {
+    ...validSession,
+    currentStepIndex: 1,
+    attempts: [validAttempt],
+  };
+  const graded = upsertRecallSession(started, gradedSession);
+  assert.equal(graded.sessions.length, 1);
+  assert.equal(graded.sessions[0].attempts.length, 1);
+  assert.deepEqual(graded.attempts, [validAttempt]);
+  assert.deepEqual(parseRecallStorage(serializeRecallStorage(graded)), graded);
+
+  const completed = upsertRecallSession(graded, {
+    ...gradedSession,
+    state: 'completed',
+    endedAt: '2026-11-04T10:12:00.000Z',
+  });
+  assert.equal(completed.sessions.length, 1);
+  assert.equal(completed.sessions[0].state, 'completed');
+  assert.equal(completed.attempts.length, 1);
+});
+
+test('recall storage rejects malformed session snapshots and mismatched attempt ownership', () => {
+  assert.throws(() => parseRecallStorage(JSON.stringify({
+    ...createEmptyRecallData(),
+    sessions: [{ ...validSession, state: 'paused' }],
+  })), /invalid session record/i);
+
+  assert.throws(() => parseRecallStorage(JSON.stringify({
+    ...createEmptyRecallData(),
+    sessions: [{
+      ...validSession,
+      attempts: [{ ...validAttempt, sessionId: 'another-session' }],
+    }],
+  })), /invalid recall attempt/i);
 });

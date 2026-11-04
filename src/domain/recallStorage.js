@@ -83,12 +83,138 @@ function normalizeRecallPayload(value) {
     throw new Error('The Guided Recall backup contains invalid session history.');
   }
 
+  const sessionIds = new Set();
+  const normalizedSessions = sessions.map((session) => {
+    if (
+      !session ||
+      typeof session !== 'object' ||
+      Array.isArray(session) ||
+      !isNonEmptyString(session.id) ||
+      session.schemaVersion !== RECALL_DATA_VERSION ||
+      !isNonEmptyString(session.routeId) ||
+      !isNonEmptyString(session.routeNameSnapshot) ||
+      !['in_progress', 'completed', 'abandoned'].includes(session.state) ||
+      !Array.isArray(session.routeSnapshot) ||
+      !Array.isArray(session.recallSnapshots) ||
+      !Array.isArray(session.attempts) ||
+      !Array.isArray(session.skippedStepIds) ||
+      !Array.isArray(session.traversedGatewayStepIds) ||
+      !Number.isInteger(session.currentStepIndex) ||
+      session.currentStepIndex < 0 ||
+      session.currentStepIndex > session.routeSnapshot.length ||
+      typeof session.startedAt !== 'string' ||
+      !Number.isFinite(Date.parse(session.startedAt)) ||
+      (session.endedAt !== null && (typeof session.endedAt !== 'string' || !Number.isFinite(Date.parse(session.endedAt))))
+    ) {
+      throw new Error('The Guided Recall backup contains an invalid session record.');
+    }
+    if (sessionIds.has(session.id)) {
+      throw new Error('The Guided Recall backup contains duplicate session IDs.');
+    }
+    sessionIds.add(session.id);
+
+    const routeStepIds = new Set();
+    const routeSnapshot = session.routeSnapshot.map((step) => {
+      if (
+        !step ||
+        typeof step !== 'object' ||
+        Array.isArray(step) ||
+        !isNonEmptyString(step.id) ||
+        !isNonEmptyString(step.palaceId) ||
+        !isNonEmptyString(step.markerId) ||
+        !['recall', 'gateway'].includes(step.kind) ||
+        (step.kind === 'gateway' && !isNonEmptyString(step.targetPalaceId)) ||
+        routeStepIds.has(step.id)
+      ) {
+        throw new Error('The Guided Recall backup contains an invalid session route snapshot.');
+      }
+      routeStepIds.add(step.id);
+      return { ...step };
+    });
+
+    const recallSnapshots = session.recallSnapshots.map((snapshot) => {
+      if (
+        !snapshot ||
+        typeof snapshot !== 'object' ||
+        Array.isArray(snapshot) ||
+        !isNonEmptyString(snapshot.routeStepId) ||
+        !isNonEmptyString(snapshot.palaceId) ||
+        !isNonEmptyString(snapshot.markerId) ||
+        typeof snapshot.promptSnapshot !== 'string' ||
+        typeof snapshot.answerSnapshot !== 'string' ||
+        !isNonEmptyString(snapshot.itemFingerprint)
+      ) {
+        throw new Error('The Guided Recall backup contains an invalid recall item snapshot.');
+      }
+      return { ...snapshot };
+    });
+
+    const locationSnapshots = session.locationSnapshots === undefined ? [] : session.locationSnapshots;
+    if (!Array.isArray(locationSnapshots)) {
+      throw new Error('The Guided Recall backup contains invalid locus snapshots.');
+    }
+    for (const snapshot of locationSnapshots) {
+      if (
+        !snapshot ||
+        typeof snapshot !== 'object' ||
+        !isNonEmptyString(snapshot.routeStepId) ||
+        !isNonEmptyString(snapshot.palaceId) ||
+        !isNonEmptyString(snapshot.markerId) ||
+        !['recall', 'gateway'].includes(snapshot.kind)
+      ) {
+        throw new Error('The Guided Recall backup contains an invalid locus snapshot.');
+      }
+    }
+
+    const nestedAttempts = session.attempts.map((attempt) => normalizeRecallAttempt(attempt, session.id));
+    if (new Set(nestedAttempts.map((attempt) => attempt.id)).size !== nestedAttempts.length) {
+      throw new Error('The Guided Recall backup contains duplicate attempt IDs in a session.');
+    }
+
+    return {
+      ...session,
+      routeSnapshot,
+      recallSnapshots,
+      locationSnapshots: locationSnapshots.map((snapshot) => ({ ...snapshot })),
+      attempts: nestedAttempts,
+      skippedStepIds: [...session.skippedStepIds],
+      traversedGatewayStepIds: [...session.traversedGatewayStepIds],
+    };
+  });
+
+  const normalizedAttempts = attempts.map((attempt) => normalizeRecallAttempt(attempt));
+  if (new Set(normalizedAttempts.map((attempt) => attempt.id)).size !== normalizedAttempts.length) {
+    throw new Error('The Guided Recall backup contains duplicate attempt IDs.');
+  }
+
   return {
     schemaVersion: RECALL_DATA_VERSION,
     routes,
-    sessions: sessions.map((session) => ({ ...session })),
-    attempts: attempts.map((attempt) => ({ ...attempt })),
+    sessions: normalizedSessions,
+    attempts: normalizedAttempts,
   };
+}
+
+function normalizeRecallAttempt(attempt, expectedSessionId = null) {
+  if (
+    !attempt ||
+    typeof attempt !== 'object' ||
+    Array.isArray(attempt) ||
+    !isNonEmptyString(attempt.id) ||
+    !isNonEmptyString(attempt.sessionId) ||
+    (expectedSessionId && attempt.sessionId !== expectedSessionId) ||
+    !isNonEmptyString(attempt.routeStepId) ||
+    !isNonEmptyString(attempt.palaceId) ||
+    !isNonEmptyString(attempt.markerId) ||
+    !isNonEmptyString(attempt.itemFingerprint) ||
+    !['correct', 'partial', 'missed'].includes(attempt.grade) ||
+    !['low', 'medium', 'high', null].includes(attempt.confidence ?? null) ||
+    typeof attempt.attemptedAt !== 'string' ||
+    !Number.isFinite(Date.parse(attempt.attemptedAt))
+  ) {
+    throw new Error('The Guided Recall backup contains an invalid recall attempt.');
+  }
+  return { ...attempt };
 }
 
 export function parseRecallStorage(raw) {
@@ -211,6 +337,38 @@ export function persistRecallBackupAtomically(storage, {
   }
 
   return true;
+}
+
+
+
+/**
+ * Keep the in-progress/completed session snapshot and its flat attempt index
+ * in one recall payload. The nested attempts are authoritative for resume;
+ * the flat index is the analytics-facing collection used by later slices.
+ */
+export function upsertRecallSession(recallData, session) {
+  const normalized = normalizeRecallPayload(recallData);
+  if (!session || typeof session !== 'object' || !isNonEmptyString(session.id)) {
+    throw new Error('A valid recall session is required.');
+  }
+
+  const nextSessions = normalized.sessions.some((item) => item.id === session.id)
+    ? normalized.sessions.map((item) => item.id === session.id ? session : item)
+    : [...normalized.sessions, session];
+
+  const sessionAttemptIds = new Set(
+    normalized.sessions.flatMap((item) => item.attempts.map((attempt) => attempt.id)),
+  );
+  const preservedAttempts = normalized.attempts.filter((attempt) => !sessionAttemptIds.has(attempt.id));
+  const indexedAttempts = nextSessions.flatMap((item) => item.attempts || []);
+  const byId = new Map();
+  for (const attempt of [...preservedAttempts, ...indexedAttempts]) byId.set(attempt.id, attempt);
+
+  return normalizeRecallPayload({
+    ...normalized,
+    sessions: nextSessions,
+    attempts: [...byId.values()],
+  });
 }
 
 export function persistRecallData(storage, recallData) {

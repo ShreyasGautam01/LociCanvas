@@ -162,7 +162,7 @@ The runner MUST use the gateway reference in the route snapshot. It MUST NOT inv
 
 ### 4.4 Confidence and elapsed time
 
-Confidence is collected after a genuine retrieval attempt but before reveal. This is a retrospective confidence judgement about the answer just attempted, not a judgement of learning made before retrieval. It remains a self-report, not an objective probability estimate.
+Confidence is collected after a genuine retrieval attempt but before reveal. The learner may explicitly skip the confidence rating; when supplied, it is stored with the self-grade. This is a retrospective confidence judgement about the answer just attempted, not a judgement of learning made before retrieval. It remains a self-report, not an objective probability estimate.
 
 If latency is recorded, it MUST be labelled **cue-to-reveal time**. It MUST NOT contribute to the recall score. The implementation SHOULD use a monotonic clock and pause elapsed-time accumulation while the document is hidden or the session is paused. If reliable timing is unavailable, omit the value rather than inventing one.
 
@@ -185,6 +185,18 @@ type RecallSession = {
   routeId: string;
   routeNameSnapshot: string;
   routeSnapshot: RecallRouteStep[];
+  locationSnapshots?: Array<{
+    routeStepId: string;
+    kind: "recall" | "gateway";
+    palaceId: string;
+    palaceNameSnapshot: string;
+    markerId: string;
+    markerTitleSnapshot: string;
+    markerXSnapshot: number;
+    markerYSnapshot: number;
+    targetPalaceId?: string;
+    targetPalaceNameSnapshot?: string;
+  }>; // presentation metadata; background images remain referenced from palace data
   state: "in_progress" | "completed" | "abandoned";
   startedAt: string;
   endedAt: string | null;
@@ -228,7 +240,7 @@ Implementation may normalize this representation into separate arrays/maps for e
 ### Local persistence and backup
 
 - The initial implementation MUST remain local-only and use browser storage behind a small repository/storage boundary rather than scattering direct storage calls through UI components.
-- A session snapshot MUST retain the exact prompt and answer text used at session start so that refreshing or editing a source note cannot alter an in-progress test. Typed free-text responses remain transient and are not persisted by default.
+- A session snapshot MUST retain the exact prompt and answer text used at session start so that refreshing or editing a source note cannot alter an in-progress test. It also captures the palace name and marker title/coordinates used to present each route step. Background images remain referenced from palace data rather than copied into every session snapshot. Typed free-text responses remain transient and are not persisted by default.
 - Existing `locicanvas_v2_data` palace data MUST remain readable and MUST NOT be destructively rewritten merely to add recall.
 - Store recall data under the separate versioned key `locicanvas_recall_v1_data` in v1. This isolates recall migrations from existing palace persistence. The current route-authoring slice stores `{ schemaVersion, routes, sessions: [], attempts: [] }`; session and attempt arrays are reserved for later slices and are not yet populated.
 - The current recall-route payload has a conservative 512 KiB estimated local-storage limit. It is separate from the existing 4 MiB palace-collection budget; future session-history growth must use explicit quota handling and must never silently prune history.

@@ -23,7 +23,9 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material';
 import { createStableId } from './domain/palaceModel.js';
-import { validateRecallRoute } from './domain/recallModel.js';
+import { createRecallSessionSnapshot, validateRecallRoute } from './domain/recallModel.js';
+import { upsertRecallSession } from './domain/recallStorage.js';
+import GuidedRecallRunner from './GuidedRecallRunner.jsx';
 
 const EMPTY_ROUTES = Object.freeze([]);
 
@@ -46,8 +48,15 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
   const [draft, setDraft] = useState(null);
   const [stepSelection, setStepSelection] = useState('');
   const [formError, setFormError] = useState('');
+  const [activeSession, setActiveSession] = useState(null);
 
   const routes = Array.isArray(recallData?.routes) ? recallData.routes : EMPTY_ROUTES;
+  const sessions = Array.isArray(recallData?.sessions) ? recallData.sessions : EMPTY_ROUTES;
+  const inProgressSessions = useMemo(
+    () => sessions.filter((session) => session?.state === 'in_progress')
+      .sort((left, right) => Date.parse(right.startedAt) - Date.parse(left.startedAt)),
+    [sessions],
+  );
   const routeStatuses = useMemo(
     () => new Map(routes.map((route) => [route.id, getRouteValidation(route, palaces)])),
     [routes, palaces],
@@ -207,8 +216,47 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
     }
   };
 
+  const startSession = (route) => {
+    try {
+      const session = createRecallSessionSnapshot(route, palaces);
+      const nextData = upsertRecallSession(recallData, session);
+      const saved = onSave(nextData);
+      if (saved === false) {
+        setFormError('This session could not be saved. Check browser storage before starting.');
+        return;
+      }
+      setSelectedRouteId(route.id);
+      setDraft(null);
+      setFormError('');
+      setActiveSession(session);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'This route could not be started.');
+    }
+  };
+
+  const persistSession = (session) => {
+    try {
+      return onSave(upsertRecallSession(recallData, session));
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Session progress could not be saved.');
+      return false;
+    }
+  };
+
   const draftValidation = draft ? getRouteValidation(draft, palaces) : null;
   const selectedRoute = routes.find((route) => route.id === selectedRouteId) || null;
+
+  if (activeSession) {
+    return (
+      <GuidedRecallRunner
+        key={activeSession.id}
+        initialSession={activeSession}
+        palaces={palaces}
+        onPersist={persistSession}
+        onExit={() => setActiveSession(null)}
+      />
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, color: 'text.primary' }}>
@@ -232,6 +280,28 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
             <Typography variant="subtitle1" fontWeight={700}>Your routes ({routes.length})</Typography>
             <Button size="small" startIcon={<AddIcon />} onClick={startNewRoute}>New</Button>
           </Stack>
+          {inProgressSessions.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Resume a session</Typography>
+              <Stack spacing={1}>
+                {inProgressSessions.map((session) => (
+                  <Paper key={session.id} variant="outlined" sx={{ p: 1.25, borderColor: 'rgba(144,202,249,0.35)' }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography fontWeight={600} noWrap>{session.routeNameSnapshot}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Step {Math.min(session.currentStepIndex + 1, session.routeSnapshot.length)} of {session.routeSnapshot.length}
+                          {' · '}{session.attempts.length} graded · {session.skippedStepIds.length} skipped
+                        </Typography>
+                      </Box>
+                      <Button size="small" variant="contained" onClick={() => setActiveSession(session)}>Resume</Button>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+              <Divider sx={{ my: 1.5 }} />
+            </Box>
+          )}
           {routes.length === 0 && (
             <Typography variant="body2" color="text.secondary">
               No routes yet. Create one to connect existing memory markers into a recall sequence.
@@ -394,7 +464,17 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
                   {routeStatuses.get(selectedRoute.id)?.errors.map((error) => error.message).join(' ')}
                 </Alert>
               )}
-              <Button variant="outlined" startIcon={<EditIcon />} onClick={() => editRoute(selectedRoute)}>Edit route</Button>
+              {formError && <Alert severity="error">{formError}</Alert>}
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <Button
+                  variant="contained"
+                  onClick={() => startSession(selectedRoute)}
+                  disabled={!routeStatuses.get(selectedRoute.id)?.valid}
+                >
+                  Start recall
+                </Button>
+                <Button variant="outlined" startIcon={<EditIcon />} onClick={() => editRoute(selectedRoute)}>Edit route</Button>
+              </Stack>
             </Stack>
           ) : (
             <Box sx={{ py: 5, textAlign: 'center' }}>
@@ -408,7 +488,7 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
         </Paper>
       </Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-        This editor prepares routes only. Guided session playback, progress, and attempt history are the next implementation slice.
+        Routes, active session snapshots, and self-reported attempts are saved locally. Session summaries are shown when a run is completed.
       </Typography>
     </Box>
   );
