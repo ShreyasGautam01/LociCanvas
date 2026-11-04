@@ -172,8 +172,15 @@ export function deriveRecallAnalytics(recallData, palaces, {
       ...performance,
     });
   }
+  const weaknessOrder = {
+    frequently_missed: 0,
+    monitor: 1,
+    not_enough_history: 2,
+  };
   frequentlyMissedItems.sort((left, right) =>
-    right.missRate - left.missRate || right.scoredExposures - left.scoredExposures);
+    weaknessOrder[left.status] - weaknessOrder[right.status]
+    || right.missRate - left.missRate
+    || right.scoredExposures - left.scoredExpos);
 
   const highConfidenceMisses = attempts
     .filter((attempt) => attempt.grade === 'missed' && attempt.confidence === 'high')

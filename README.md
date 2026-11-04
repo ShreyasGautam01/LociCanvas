@@ -28,6 +28,7 @@ LociCanvas is a visual digital memory palace based on the Method of Loci. Create
 - Persisted active-session snapshots with resume after refresh; completed and abandoned session snapshots and self-reported attempts are included in backups.
 - Session history and route performance views derived from saved self-reported attempts.
 - Per-note content-revision history, current-revision frequently-missed indicators, and separate high-confidence-miss observations.
+- Learner-triggered one-note manual review at the original locus, without creating or changing authored routes or assigning review intervals.
 
 ## Technology
 
@@ -75,15 +76,17 @@ Data is still local to a browser profile and origin. It is not synchronized acro
 - `src/domain/palaceModel.test.js`: tests for domain operations and data validation.
 - `src/domain/recallModel.js` and `src/domain/recallModel.test.js`: route validation, session domain logic, scoring, and recent-performance algorithms.
 - `src/domain/recallAnalytics.js` and `src/domain/recallAnalytics.test.js`: read-only analytics projections over persisted sessions, revision history, and current-note weakness signals.
+- `src/domain/recallReview.js` and `src/domain/recallReview.test.js`: transient, fingerprint-checked one-note manual review route creation.
 - `src/domain/recallStorage.js` and `src/domain/recallStorage.test.js`: versioned recall storage, combined backup validation, legacy import, and two-key rollback tests.
 - `src/GuidedRecallManager.jsx`: Guided Recall route authoring, resumable-session entry points, and analytics entry point.
-- `src/RecallAnalyticsPanel.jsx`: session history, route performance, note revision history, weakness indicators, and confidence observations.
+- `src/RecallAnalyticsPanel.jsx`: session history, route performance, note revision history, weakness indicators, manual-review entry, and confidence observations.
 - `src/GuidedRecallRunner.jsx`: guided recall runner, answer reveal, confidence, self-grading, skip, gateway entry, and session results.
 - `browser-tests/guided-recall.browser.js`: Chromium end-to-end acceptance for a gateway-connected route, refresh persistence, and backup round-trip.
 - `vite.config.js`: Vite configuration.
 - `IMPROVEMENT_PLAN.md`: phased multi-user upgrade plan and architecture decisions.
 - `docs/GUIDED_RECALL_V1_SPEC.md`: enforceable product, data, scoring, persistence, accessibility, and test contract for Guided Recall.
 - `docs/GUIDED_RECALL_V1_TASKS.md`: implementation slices and release gates for Guided Recall.
+- `docs/MANUAL_REVIEW_V1_DECISION.md`: decision record distinguishing manual re-practice from future adaptive scheduling.
 - `supabase/migrations/`: version-controlled PostgreSQL schema and RLS policies.
 - `supabase/tests/`: disposable PostgreSQL setup plus migration/ownership tests run in CI.
 - `SUPABASE_SETUP.md`: database setup, migration deployment, and live cloud-security verification checklist.

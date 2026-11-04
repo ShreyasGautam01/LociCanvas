@@ -27,6 +27,7 @@ import { createRecallSessionSnapshot, validateRecallRoute } from './domain/recal
 import { upsertRecallSession } from './domain/recallStorage.js';
 import GuidedRecallRunner from './GuidedRecallRunner.jsx';
 import RecallAnalyticsPanel from './RecallAnalyticsPanel.jsx';
+import { createManualReviewRoute } from './domain/recallReview.js';
 
 const EMPTY_ROUTES = Object.freeze([]);
 
@@ -233,6 +234,30 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
       setActiveSession(session);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'This route could not be started.');
+    }
+  };
+
+  const startManualReview = (note) => {
+    try {
+      const now = routeTime();
+      const route = createManualReviewRoute(palaces, {
+        palaceId: note.palaceId,
+        markerId: note.markerId,
+        itemFingerprint: note.itemFingerprint,
+        now,
+      });
+      const session = createRecallSessionSnapshot(route, palaces, { now });
+      const saved = onSave(upsertRecallSession(recallData, session));
+      if (saved === false) {
+        setFormError('This review could not be saved. Check browser storage before starting.');
+        return;
+      }
+      setSelectedRouteId(null);
+      setDraft(null);
+      setFormError('');
+      setActiveSession(session);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'This note could not be reviewed.');
     }
   };
 
@@ -494,7 +519,14 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
           )}
         </Paper>
       </Box>
-      {showAnalytics && <RecallAnalyticsPanel recallData={recallData} palaces={palaces} />}
+      {showAnalytics && (
+        <RecallAnalyticsPanel
+          recallData={recallData}
+          palaces={palaces}
+          onReviewNote={startManualReview}
+          reviewError={formError}
+        />
+      )}
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
         Routes, active session snapshots, and self-reported attempts are saved locally. Session summaries are shown when a run is completed.
       </Typography>

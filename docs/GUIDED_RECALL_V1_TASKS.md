@@ -92,7 +92,7 @@ Acceptance:
 
 ## PR 4 — Session history and weakness analytics
 
-**Implementation slice:** PR #9, branch `feat/recall-session-analytics` (implementation complete; CI/review pending).
+**Implementation slice:** PR #9, branch `feat/recall-session-analytics` (merged into `main` on 2026-11-04).
 
 **Goal:** expose useful evidence about recall without overclaiming.
 
@@ -113,25 +113,47 @@ Acceptance:
 - [x] Fewer than three eligible exposures remains Not enough history.
 - [x] Edited note content starts a new revision bucket.
 - [x] UI labels results as self-reported and explicitly disclaims objective mastery / delayed-retention claims.
-- [ ] CI domain, lint, production build, and browser acceptance gates pass.
+- [x] CI domain, lint, production build, and browser acceptance gates pass.
 
-## PR 5 — Review queue and adaptive replay (after pilot feedback)
+## PR 5 — Manual one-note review
 
-**Goal:** introduce a simple, explainable re-review workflow only after the base metrics are trusted.
+**Implementation slice:** PR #10, branch `feat/manual-note-review` (implementation complete; CI/review pending).
+
+**Goal:** let the learner deliberately re-practise a note highlighted by current-revision history, without pretending to know the optimal review interval.
+
+Deliverables:
+- [x] Add a learner-triggered review action to current-revision notes with eligible recent history.
+- [x] Launch a transient one-step route at the note's original palace and marker.
+- [x] Re-check the current content fingerprint before the review starts.
+- [x] Use the existing answer-hidden, confidence-before-reveal, self-grade, resume, and backup lifecycle.
+- [x] Keep the transient route out of the user's authored route list.
+- [x] State clearly that this is manual practice, not an automatically scheduled or due review.
+- [x] Record the design boundary in `docs/MANUAL_REVIEW_V1_DECISION.md`.
+
+Acceptance:
+- [ ] A review session is stored and appears in session history.
+- [ ] A review does not add or mutate a saved route.
+- [ ] Stale content revisions and deleted note references are rejected.
+- [ ] Review attempts remain associated with the exact note fingerprint and original locus.
+- [ ] CI domain, lint, production build, browser acceptance, and database checks pass.
+
+## Future PR — Adaptive scheduling and replay (deferred)
+
+Do not implement until the full research report is reconciled and a predeclared delayed-recall pilot provides evidence to evaluate scheduling choices.
 
 Candidate work:
-- Due-review queue based on transparent intervals.
-- Re-run one missed item in its original locus.
-- Confidence-aware replay ordering.
+- Transparent due-review intervals.
+- Confidence-aware ordering experiments.
 - Reverse cue / blank-cue variants.
 - Interference-aware ordering experiments.
 
 Acceptance before implementation:
-- [ ] Defaults are justified by the research report or a documented experiment.
-- [ ] The algorithm is versioned and has deterministic tests.
-- [ ] The UI explains why an item is due.
+- [ ] Scheduling defaults are justified by the reconciled research evidence or a documented experiment.
+- [ ] The algorithm is versioned, deterministic, and covered by boundary/edge-case tests.
+- [ ] Every due recommendation explains its rule and evidence.
 - [ ] The queue does not silently replace the user's custom route order.
-- [ ] Delayed recall is measured separately from immediate performance.
+- [ ] Delayed recall is measured separately from immediate self-reported performance.
+- [ ] Pilot sample size, missing follow-ups, and uncertainty are reported.
 
 ## PR 6 — Accessibility and learning evaluation hardening
 
@@ -148,6 +170,13 @@ Acceptance:
 - [ ] Answer content is not exposed before reveal through accessible labels.
 - [ ] Session resume and storage errors are tested in a browser.
 - [ ] Evaluation reports delayed recall and sample size, not engagement alone.
+
+### PR #10 verification scope
+
+- Manual reviews create a transient one-note route with a reserved ID; authored route definitions are not changed.
+- Reviews preserve the selected palace/marker and immutable note snapshot and reject stale item fingerprints before session creation.
+- The browser acceptance test launches a review from analytics, completes it through the existing recall runner, verifies it appears in history, and checks that backups retain two sessions but still only one authored route.
+- There is no due date, interval, automatic scheduling, or new storage schema.
 
 ### PR #9 verification scope
 

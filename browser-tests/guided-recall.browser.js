@@ -103,8 +103,23 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     await page.getByRole('heading', { name: 'Session history' }).waitFor();
     await page.getByText('Browser integration route', { exact: true }).first().waitFor();
     await page.getByText('50% self-reported score', { exact: true }).first().waitFor();
-    await page.getByRole('heading', { name: 'Frequently missed notes' }).waitFor();
+    await page.getByRole('heading', { name: 'Current note review signals' }).waitFor();
+    await page.getByRole('button', { name: 'Review Draft Paper' }).click();
+    await page.getByRole('heading', { name: 'Manual review' }).waitFor();
+    await page.getByText('Draft Paper', { exact: true }).waitFor();
+    await page.getByRole('button', { name: "I've attempted recall" }).click();
+    await page.getByRole('radio', { name: 'High' }).check();
+    await page.getByRole('button', { name: 'Reveal answer' }).click();
+    await page.getByText('Finish the project.', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Correct', exact: true }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText('Session completed', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Return to routes' }).click();
+    await page.getByRole('heading', { name: 'Learning analytics' }).waitFor();
+    await page.getByText('Manual review', { exact: true }).first().waitFor();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
+
+
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
@@ -116,10 +131,14 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     assert.equal(backup.recall.routes.length, 1);
     assert.equal(backup.recall.routes[0].name, 'Browser integration route');
     assert.deepEqual(backup.recall.routes[0].steps.map((step) => step.kind), ['recall', 'gateway', 'recall']);
-    assert.equal(backup.recall.sessions.length, 1);
+    assert.equal(backup.recall.sessions.length, 2);
     assert.equal(backup.recall.sessions[0].state, 'completed');
     assert.equal(backup.recall.sessions[0].attempts.length, 2);
-    assert.equal(backup.recall.attempts.length, 2);
+    assert.equal(backup.recall.sessions[1].routeNameSnapshot, 'Manual review');
+    assert.equal(backup.recall.sessions[1].state, 'completed');
+    assert.equal(backup.recall.sessions[1].attempts.length, 1);
+    assert.equal(backup.recall.sessions[1].attempts[0].markerId, 'note-2');
+    assert.equal(backup.recall.attempts.length, 3);
     assert.deepEqual(backup.recall.sessions[0].attempts.map((attempt) => attempt.grade), ['correct', 'missed']);
 
     page.on('dialog', (dialog) => dialog.accept());
