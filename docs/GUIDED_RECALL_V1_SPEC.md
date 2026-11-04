@@ -334,6 +334,20 @@ V1 SHOULD include a filter for the last 7 / 30 / 60 days, but the default weakne
 - Earlier note revisions remain visible in item history but MUST NOT contribute to the current revision's frequently-missed indicator.
 - High-confidence missed attempts MAY be surfaced as a separate observation and MUST NOT alter the grade weight or weak-item calculation.
 
+### Manual note review
+
+The frequently-missed/current-revision view MUST allow a learner to launch a manual one-note review for a note with eligible recent history.
+
+- The review MUST use the current note revision and the original palace/marker locus.
+- The app MUST re-check the note's content fingerprint immediately before starting; a stale selection MUST be rejected with a refresh message.
+- The review MUST use the existing Guided Recall answer-hidden, confidence-before-reveal, and self-grade lifecycle.
+- The generated one-step route is transient and MUST NOT be added to, reorder, or modify authored routes.
+- The resulting session and attempt MUST use existing local persistence and backup behavior.
+- The UI MUST state that the action is manual practice, not a scheduled or due review.
+- No due dates, review intervals, automatic scheduling, confidence-weighted scheduling, or schema changes are introduced by this action.
+
+Automatic adaptive scheduling remains gated on research-report reconciliation and delayed-recall pilot evidence.
+
 ## 8. Accessibility, resilience, and interaction quality
 
 - All route editor and runner actions MUST be keyboard-operable, with visible focus and semantic labels.
