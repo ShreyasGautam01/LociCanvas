@@ -54,7 +54,7 @@ import {
   Search as SearchIcon,
   CloudOff as CloudOffIcon,
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 
 const AnimatedDiv = motion.div;
 
@@ -680,7 +680,8 @@ export default function App() {
 
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline />
+      <MotionConfig reducedMotion="user">
+        <CssBaseline />
       <GlobalStyles styles={{ 
         'html, body, #root': { margin: 0, padding: 0, width: '100vw', height: '100vh', overflow: 'hidden', bgcolor: '#0a0e14' },
         '::selection': { background: alpha(DEFAULT_THEME_COLOR, 0.3), color: '#fff' }
@@ -803,7 +804,15 @@ export default function App() {
 
         {/* --- DIALOGS --- */}
         
-        <Dialog open={recallOpen} onClose={() => setRecallOpen(false)} fullWidth maxWidth="lg" scroll="paper" PaperProps={{ sx: { bgcolor: '#121820', backgroundImage: 'none', border: '1px solid rgba(255,255,255,0.12)' } }}>
+        <Dialog
+          open={recallOpen}
+          onClose={() => setRecallOpen(false)}
+          aria-labelledby="guided-recall-dialog-title"
+          fullWidth
+          maxWidth="lg"
+          scroll="paper"
+          PaperProps={{ sx: { bgcolor: '#121820', backgroundImage: 'none', border: '1px solid rgba(255,255,255,0.12)' } }}
+        >
           <GuidedRecallManager
             palaces={palaces}
             recallData={recallData}
@@ -1047,6 +1056,7 @@ export default function App() {
           </Alert>
         </Snackbar>
       </Box>
+      </MotionConfig>
     </ThemeProvider>
   );
 }
