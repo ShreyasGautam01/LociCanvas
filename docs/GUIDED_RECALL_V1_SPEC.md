@@ -435,6 +435,8 @@ A later opt-in evaluation SHOULD compare:
 
 Where feasible, use the same content and comparable item difficulty across conditions (for example, guided loci recall versus reviewing the same notes without route traversal). Predefine inclusion rules and report sample size, missing follow-ups, and uncertainty. Do not infer that the method works from engagement, self-ratings, or a small uncontrolled pilot alone.
 
+A draft, documentation-only feasibility design is maintained in [`DELAYED_RECALL_PILOT_PROTOCOL_V1.md`](./DELAYED_RECALL_PILOT_PROTOCOL_V1.md). It is a proposed study plan, not authorization to recruit participants, evidence of efficacy, or a basis for choosing review intervals.
+
 ## 12. Decision boundary
 
 This document is the implementation contract for Guided Recall v1. Research findings may refine defaults, terminology, or optional experiments, but any change to route invariants, scoring weights, weakness thresholds, data retention, or privacy behavior MUST be recorded as a versioned decision with updated tests. The full Deep Research report should still be reconciled before adaptive scheduling, experimental features, or claims of learning efficacy. The deterministic domain model in PR 1 does not encode claims about optimal learning intervals or effect sizes.
