@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -7,6 +7,7 @@ import {
   Divider,
   FormControl,
   FormControlLabel,
+  FormLabel,
   Paper,
   Radio,
   RadioGroup,
@@ -110,6 +111,12 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
   const [typedResponse, setTypedResponse] = useState('');
   const [storageError, setStorageError] = useState('');
   const [actionError, setActionError] = useState('');
+  const cueHeadingRef = useRef(null);
+  const gatewayHeadingRef = useRef(null);
+  const answerHeadingRef = useRef(null);
+  const resultHeadingRef = useRef(null);
+  const confidenceGroupRef = useRef(null);
+  const continueButtonRef = useRef(null);
 
   const currentStep = session.routeSnapshot[session.currentStepIndex] || null;
   const currentIndex = session.currentStepIndex;
@@ -122,6 +129,30 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
   const alreadySkipped = Boolean(currentStep && session.skippedStepIds.includes(currentStep.id));
   const hasOutcome = alreadyAttempted || alreadySkipped;
   const score = calculateRecallSessionScore(session);
+
+  useEffect(() => {
+    if (session.state === 'completed' || session.state === 'abandoned') {
+      resultHeadingRef.current?.focus();
+      return;
+    }
+    if (hasOutcome) {
+      continueButtonRef.current?.focus();
+      return;
+    }
+    if (revealed) {
+      answerHeadingRef.current?.focus();
+      return;
+    }
+    if (hasAttempted && currentStep?.kind === 'recall') {
+      confidenceGroupRef.current?.querySelector('input[type="radio"]')?.focus();
+      return;
+    }
+    if (currentStep?.kind === 'recall') {
+      cueHeadingRef.current?.focus();
+    } else {
+      gatewayHeadingRef.current?.focus();
+    }
+  }, [session.state, currentStep?.id, hasOutcome, revealed, hasAttempted]);
 
   const persistSession = (nextSession) => {
     try {
@@ -210,7 +241,7 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
             <Typography variant="overline" color="primary">GUIDED RECALL RESULT</Typography>
             <Button color="inherit" onClick={onExit}>Back to routes</Button>
           </Stack>
-          <Typography variant="h4" fontWeight={700}>{completed ? 'Session completed' : 'Session abandoned'}</Typography>
+          <Typography ref={resultHeadingRef} id="guided-recall-dialog-title" component="h1" tabIndex={-1} variant="h4" fontWeight={700}>{completed ? 'Session completed' : 'Session abandoned'}</Typography>
           <Typography color="text.secondary">{session.routeNameSnapshot}</Typography>
           <Paper variant="outlined" sx={{ p: 2.5, bgcolor: 'rgba(255,255,255,0.025)' }}>
             <Stack spacing={1.5}>
@@ -250,29 +281,62 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
   const destinationName = !isRecall ? getDestinationName(session, currentStep, palaces) : '';
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, color: 'text.primary' }}>
+    <Box
+      sx={{
+        p: { xs: 2, sm: 3 },
+        color: 'text.primary',
+        '& :focus-visible': {
+          outline: '3px solid',
+          outlineColor: 'primary.light',
+          outlineOffset: '3px',
+        },
+        '& .MuiButtonBase-root.Mui-focusVisible': {
+          outline: '3px solid',
+          outlineColor: 'primary.light',
+          outlineOffset: '3px',
+        },
+        '& .MuiButton-root': { minHeight: 44 },
+      }}
+    >
       <Stack spacing={2} sx={{ maxWidth: 920, mx: 'auto' }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between" gap={1}>
           <Box>
             <Typography variant="overline" color="primary">GUIDED RECALL SESSION</Typography>
-            <Typography variant="h5" fontWeight={700}>{session.routeNameSnapshot}</Typography>
+            <Typography id="guided-recall-dialog-title" component="h1" variant="h5" fontWeight={700}>{session.routeNameSnapshot}</Typography>
             <Typography variant="body2" color="text.secondary">
               Step {stepNumber} of {session.routeSnapshot.length} · {session.attempts.length} graded · {session.skippedStepIds.length} skipped
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1} justifyContent="flex-end">
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            justifyContent="flex-end"
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
+          >
             <Button color="inherit" startIcon={<ExitToAppIcon />} onClick={onExit}>Exit to routes</Button>
             <Button color="error" onClick={handleAbandon}>Abandon</Button>
           </Stack>
         </Stack>
 
-        <Box sx={{ height: 6, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
-          <Box sx={{
-            height: '100%',
-            width: (session.currentStepIndex / session.routeSnapshot.length * 100) + '%',
-            bgcolor: 'primary.main',
-            transition: 'width 180ms ease-out',
-          }} />
+        <Box
+          role="progressbar"
+          aria-label="Session progress"
+          aria-valuemin={1}
+          aria-valuemax={session.routeSnapshot.length}
+          aria-valuenow={stepNumber}
+          aria-valuetext={'Step ' + stepNumber + ' of ' + session.routeSnapshot.length}
+          sx={{ height: 6, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}
+        >
+          <Box
+            aria-hidden="true"
+            sx={{
+              height: '100%',
+              width: (stepNumber / session.routeSnapshot.length * 100) + '%',
+              bgcolor: 'primary.main',
+              transition: 'width 180ms ease-out',
+              '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+            }}
+          />
         </Box>
 
         <LocationScene location={location} label={isRecall ? 'Recall locus' : 'Gateway location'} />
@@ -282,7 +346,7 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
             <Stack spacing={2}>
               <Chip color="primary" size="small" label="Recall stop" sx={{ alignSelf: 'flex-start' }} />
               <Typography variant="overline" color="text.secondary">RECALL CUE</Typography>
-              <Typography variant="h4" fontWeight={700}>{recallSnapshot.promptSnapshot || 'Untitled memory'}</Typography>
+              <Typography ref={cueHeadingRef} id="guided-recall-cue" component="h2" tabIndex={-1} variant="h4" fontWeight={700}>{recallSnapshot.promptSnapshot || 'Untitled memory'}</Typography>
 
               {!hasOutcome && !revealed && (
                 <Stack spacing={1.5}>
@@ -303,15 +367,21 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
                     <Alert severity="info">Recall attempt registered for this step. Set your confidence before revealing the saved note.</Alert>
                   )}
                   {hasAttempted && (
-                    <FormControl>
-                      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>How confident were you in the answer you just recalled?</Typography>
+                    <FormControl component="fieldset" sx={{ minWidth: 0 }}>
+                      <FormLabel component="legend" id="guided-recall-confidence-label" sx={{ mb: 0.5 }}>
+                        How confident were you in the answer you just recalled?
+                      </FormLabel>
                       <RadioGroup
+                        ref={confidenceGroupRef}
+                        aria-labelledby="guided-recall-confidence-label"
+                        name="guided-recall-confidence"
                         row
+                        sx={{ flexWrap: 'wrap' }}
                         value={confidence}
                         onChange={(event) => { setConfidence(event.target.value); setConfidenceSkipped(false); }}
                       >
                         {['low', 'medium', 'high'].map((level) => (
-                          <FormControlLabel key={level} value={level} control={<Radio />} label={level[0].toUpperCase() + level.slice(1)} />
+                          <FormControlLabel key={level} value={level} control={<Radio />} label={level[0].toUpperCase() + level.slice(1)} sx={{ minHeight: 44, mx: 0.5 }} />
                         ))}
                       </RadioGroup>
                       <Button
@@ -342,7 +412,7 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
                 <Stack spacing={2}>
                   <Alert severity="success">Answer revealed. Compare it with what you recalled, then report your own grade.</Alert>
                   <Paper sx={{ p: 2, bgcolor: 'rgba(165,214,167,0.08)', border: '1px solid rgba(165,214,167,0.25)' }}>
-                    <Typography variant="overline" color="primary">SAVED NOTE CONTENT</Typography>
+                    <Typography ref={answerHeadingRef} component="h3" tabIndex={-1} variant="overline" color="primary">SAVED NOTE CONTENT</Typography>
                     <Typography sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                       {recallSnapshot.answerSnapshot || 'This note has no saved answer content.'}
                     </Typography>
@@ -363,7 +433,7 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
                       ? 'This stop was explicitly skipped. It will not count as a failed recall.'
                       : 'Your self-reported grade is saved: ' + (session.attempts.find((attempt) => attempt.routeStepId === currentStep.id)?.grade || 'recorded') + '.'}
                   </Alert>
-                  <Button variant="contained" endIcon={<AdvanceIcon />} onClick={handleContinue}>Continue</Button>
+                  <Button ref={continueButtonRef} variant="contained" endIcon={<AdvanceIcon />} onClick={handleContinue}>Continue</Button>
                 </Stack>
               )}
             </Stack>
@@ -372,7 +442,7 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
           <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, bgcolor: 'rgba(255,255,255,0.025)', borderColor: 'rgba(255,255,255,0.12)' }}>
             <Stack spacing={2}>
               <Chip color="secondary" size="small" label="Navigation step" sx={{ alignSelf: 'flex-start' }} />
-              <Typography variant="h5" fontWeight={700}>{location.markerTitle}</Typography>
+              <Typography ref={gatewayHeadingRef} id="guided-recall-gateway-heading" component="h2" tabIndex={-1} variant="h5" fontWeight={700}>{location.markerTitle}</Typography>
               <Typography color="text.secondary">This gateway leads to <strong>{destinationName}</strong>.</Typography>
               <Alert severity="info">Entering a gateway is navigation, not a recall attempt. It does not affect the score.</Alert>
               <Button variant="contained" onClick={handleEnterGateway}>Enter gateway to {destinationName}</Button>
