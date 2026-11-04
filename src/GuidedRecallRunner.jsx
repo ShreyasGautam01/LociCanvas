@@ -135,6 +135,10 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
       resultHeadingRef.current?.focus();
       return;
     }
+    if (!currentStep || (!recallSnapshot && currentStep?.kind === 'recall')) {
+      resultHeadingRef.current?.focus();
+      return;
+    }
     if (hasOutcome) {
       continueButtonRef.current?.focus();
       return;
@@ -271,6 +275,9 @@ export default function GuidedRecallRunner({ initialSession, palaces, onPersist,
   if (!currentStep || !location || !recallSnapshot && currentStep.kind === 'recall') {
     return (
       <Box sx={{ p: 3 }}>
+        <Typography ref={resultHeadingRef} id="guided-recall-dialog-title" component="h1" tabIndex={-1} variant="h5" fontWeight={700} sx={{ mb: 2 }}>
+          Session unavailable
+        </Typography>
         <Alert severity="error">This saved session is incomplete and cannot be continued safely. Your saved attempts have not been deleted.</Alert>
         <Button sx={{ mt: 2 }} onClick={onExit}>Back to routes</Button>
       </Box>
