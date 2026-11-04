@@ -160,7 +160,7 @@ export default function RecallAnalyticsPanel({ recallData, palaces, onReviewNote
       )}
 
       <Divider sx={{ my: 2.5 }} />
-      <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>Frequently missed notes</Typography>
+      <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>Current note review signals</Typography>
       <Typography variant="caption" color="text.secondary">
         Current note revision only. Uses the latest 5 scored exposures in 60 days; at least 3 are required, with missed = 1 and partial = 0.5.
       </Typography>
@@ -190,6 +190,9 @@ export default function RecallAnalyticsPanel({ recallData, palaces, onReviewNote
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 60-day lookback · 3-exposure minimum · {gradeSummary(item.counts)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                Recent outcomes: {item.attempts.slice(0, 3).map((attempt) => attempt.grade).join(' · ')}
               </Typography>
               <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1 }}>
                 <Button
