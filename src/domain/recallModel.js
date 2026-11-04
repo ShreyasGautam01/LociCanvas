@@ -440,6 +440,7 @@ export function calculateRecallSessionScore(session) {
  */
 export function calculateItemRecentPerformance(attempts, {
   markerId,
+  palaceId,
   itemFingerprint,
   now = new Date().toISOString(),
   lookbackDays = RECALL_DEFAULTS.lookbackDays,
@@ -450,6 +451,9 @@ export function calculateItemRecentPerformance(attempts, {
   if (!Array.isArray(attempts)) throw new Error('Attempts must be an array.');
   if (!isNonEmptyString(markerId) || !isNonEmptyString(itemFingerprint)) {
     throw new Error('A marker ID and item fingerprint are required.');
+  }
+  if (palaceId !== undefined && !isNonEmptyString(palaceId)) {
+    throw new Error('Palace ID must be a non-empty string when supplied.');
   }
   const nowMs = Date.parse(now);
   if (!Number.isFinite(nowMs)) throw new Error('The performance reference time must be valid.');
@@ -465,6 +469,7 @@ export function calculateItemRecentPerformance(attempts, {
     .filter((attempt) => {
       if (
         attempt?.markerId !== markerId ||
+        (palaceId !== undefined && attempt?.palaceId !== palaceId) ||
         attempt?.itemFingerprint !== itemFingerprint ||
         !RECALL_GRADES.includes(attempt?.grade) ||
         !isNonEmptyString(attempt?.sessionId) ||
