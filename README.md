@@ -87,6 +87,8 @@ Data is still local to a browser profile and origin. It is not synchronized acro
 - `docs/GUIDED_RECALL_V1_SPEC.md`: enforceable product, data, scoring, persistence, accessibility, and test contract for Guided Recall.
 - `docs/GUIDED_RECALL_V1_TASKS.md`: implementation slices and release gates for Guided Recall.
 - `docs/MANUAL_REVIEW_V1_DECISION.md`: decision record distinguishing manual re-practice from future adaptive scheduling.
+- `docs/DELAYED_RECALL_PILOT_PROTOCOL_V1.md`: draft, documentation-only feasibility protocol for independently measuring immediate and delayed recall; it is not authorization to recruit participants or evidence of efficacy.
+- `docs/GUIDED_RECALL_ACCESSIBILITY_AUDIT.md`: automated accessibility coverage and the remaining manual screen-reader checklist.
 - `supabase/migrations/`: version-controlled PostgreSQL schema and RLS policies.
 - `supabase/tests/`: disposable PostgreSQL setup plus migration/ownership tests run in CI.
 - `SUPABASE_SETUP.md`: database setup, migration deployment, and live cloud-security verification checklist.
@@ -107,7 +109,8 @@ GitHub Pages only serves the static frontend. The deployment workflow has comple
 - Uploaded background images remain local to this browser until cloud storage is implemented. A future Supabase Storage integration will be needed to sync those images across devices.
 - Browser-local recovery remains best-effort and depends on browser storage being accessible.
 - Palace deletion UI, search, tags, and undo/redo are not implemented yet.
-- A successful Pages deployment is recorded in GitHub Actions, but direct browser/device smoke tests and accessibility checks remain outstanding.
+- A successful Pages deployment is recorded in GitHub Actions. Automated Guided Recall keyboard/mobile/reduced-motion checks pass, but manual NVDA/VoiceOver/TalkBack checks and some repair/storage-error browser paths remain outstanding.
+- The delayed-recall pilot protocol is a draft study plan only. No participant study has been conducted, and the app does not automatically schedule reviews.
 - The Supabase migration defines the security-oriented database foundation only; no frontend Supabase client or authentication flow is wired up yet.
 
 
