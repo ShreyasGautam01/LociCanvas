@@ -117,7 +117,7 @@ Acceptance:
 
 ## PR 5 — Manual one-note review
 
-**Implementation slice:** PR #10, branch `feat/manual-note-review` (implementation complete; CI/review pending).
+**Implementation slice:** PR #10, branch `feat/manual-note-review` (merged into `main` on 2026-11-04; domain, lint, build, Chromium acceptance, PostgreSQL/RLS, and Vercel checks passed).
 
 **Goal:** let the learner deliberately re-practise a note highlighted by current-revision history, without pretending to know the optimal review interval.
 
@@ -131,11 +131,11 @@ Deliverables:
 - [x] Record the design boundary in `docs/MANUAL_REVIEW_V1_DECISION.md`.
 
 Acceptance:
-- [ ] A review session is stored and appears in session history.
-- [ ] A review does not add or mutate a saved route.
-- [ ] Stale content revisions and deleted note references are rejected.
-- [ ] Review attempts remain associated with the exact note fingerprint and original locus.
-- [ ] CI domain, lint, production build, browser acceptance, and database checks pass.
+- [x] A review session is stored and appears in session history.
+- [x] A review does not add or mutate a saved route.
+- [x] Stale content revisions and deleted note references are rejected.
+- [x] Review attempts remain associated with the exact note fingerprint and original locus.
+- [x] CI domain, lint, production build, browser acceptance, and database checks pass.
 
 ## Future PR — Adaptive scheduling and replay (deferred)
 
@@ -155,23 +155,42 @@ Acceptance before implementation:
 - [ ] Delayed recall is measured separately from immediate self-reported performance.
 - [ ] Pilot sample size, missing follow-ups, and uncertainty are reported.
 
-## PR 6 — Accessibility and learning evaluation hardening
+## PR 6 — Accessibility and mobile hardening
+
+**Implementation slice:** PR #11, branch `feat/guided-recall-accessibility`.
 
 Deliverables:
-- Keyboard-only audit.
-- Reduced-motion and focus-management audit.
-- Mobile layout and screen-reader check.
-- Opt-in delayed-recall evaluation protocol.
-- Updated documentation and screenshots/manual test notes.
+- Keyboard-operable route creation and recall flow with explicit focus movement.
+- Semantic dialog, heading, confidence-group, and progress labels.
+- Visible keyboard focus and minimum 44 px Guided Recall action targets.
+- Reduced-motion behavior for Framer Motion transitions and the session progress indicator.
+- Responsive manager and runner actions at narrow mobile widths.
+- Updated automated coverage and a manual assistive-technology checklist.
 
 Acceptance:
-- [ ] All controls are keyboard reachable and visibly focused.
-- [ ] No recall action depends on animation.
-- [ ] Answer content is not exposed before reveal through accessible labels.
-- [ ] Session resume and storage errors are tested in a browser.
-- [ ] Evaluation reports delayed recall and sample size, not engagement alone.
+- [x] Opening Guided Recall focuses its heading; opening the editor focuses the route-name field.
+- [x] Starting a recall step focuses the cue; confidence, answer reveal, grading, gateway entry, and session completion move focus to the next meaningful element.
+- [x] The hidden answer is absent from visible content and accessible-label attributes before reveal.
+- [x] The narrow mobile dialog and runner actions remain within the viewport without horizontal overflow.
+- [x] Reduced-motion emulation disables the session progress transition and Framer Motion uses the user's system preference.
+- [x] The browser acceptance flow exercises route creation and the core recall actions by keyboard.
+- [ ] A complete keyboard-only audit covers every route-authoring and analytics control.
+- [ ] Manual NVDA, VoiceOver, or TalkBack testing is completed on supported devices before declaring a full screen-reader audit.
+- [ ] Broken-route repair UI and storage-quota interaction have dedicated browser acceptance tests.
 
-### PR #10 verification scope
+### Delayed-recall evaluation gate (separate, deferred)
+
+Do not add automatic due dates or adaptive scheduling as part of this accessibility slice. First reconcile the full research report, then predeclare an opt-in delayed-recall feasibility protocol with actual follow-up completion, item revision identity, objective scoring rules where feasible, and explicit reporting of sample size and missing follow-ups.
+
+### PR #11 verification scope
+
+- The route manager and runner expose named dialog/heading/field/group/progress semantics.
+- Focus is moved to new recall cues, answer reveal, confidence choices, Continue, gateway cues, and completed-session results; returning from a runner restores focus to the route manager.
+- The browser acceptance test uses a 390 × 844 viewport and reduced-motion emulation, verifies keyboard operation through the first recall step, checks accessible-label answer hiding, and asserts no horizontal dialog overflow.
+- Framer Motion follows the user's `prefers-reduced-motion` setting; the session progress bar has no transition when reduced motion is requested.
+- Manual screen-reader/device verification remains explicitly outstanding.
+
+## PR #10 verification scope
 
 - Manual reviews create a transient one-note route with a reserved ID; authored route definitions are not changed.
 - Reviews preserve the selected palace/marker and immutable note snapshot and reject stale item fingerprints before session creation.
