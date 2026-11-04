@@ -26,6 +26,8 @@ LociCanvas is a visual digital memory palace based on the Method of Loci. Create
 - Guided Recall route authoring: create, rename, edit, and delete routes; add existing note and gateway markers; reorder steps; and see broken references marked for repair.
 - Guided Recall runner with answer-hidden recall cues, optional private response drafting, confidence-before-reveal, explicit self-grading/skips, and gateway traversal.
 - Persisted active-session snapshots with resume after refresh; completed and abandoned session snapshots and self-reported attempts are included in backups.
+- Session history and route performance views derived from saved self-reported attempts.
+- Per-note content-revision history, current-revision frequently-missed indicators, and separate high-confidence-miss observations.
 
 ## Technology
 
@@ -72,8 +74,10 @@ Data is still local to a browser profile and origin. It is not synchronized acro
 - `src/domain/palaceModel.js`: pure coordinate, movement, storage parsing/serialization, and gateway-cleanup operations.
 - `src/domain/palaceModel.test.js`: tests for domain operations and data validation.
 - `src/domain/recallModel.js` and `src/domain/recallModel.test.js`: route validation, session domain logic, scoring, and recent-performance algorithms.
+- `src/domain/recallAnalytics.js` and `src/domain/recallAnalytics.test.js`: read-only analytics projections over persisted sessions, revision history, and current-note weakness signals.
 - `src/domain/recallStorage.js` and `src/domain/recallStorage.test.js`: versioned recall storage, combined backup validation, legacy import, and two-key rollback tests.
-- `src/GuidedRecallManager.jsx`: Guided Recall route authoring and resumable-session entry points.
+- `src/GuidedRecallManager.jsx`: Guided Recall route authoring, resumable-session entry points, and analytics entry point.
+- `src/RecallAnalyticsPanel.jsx`: session history, route performance, note revision history, weakness indicators, and confidence observations.
 - `src/GuidedRecallRunner.jsx`: guided recall runner, answer reveal, confidence, self-grading, skip, gateway entry, and session results.
 - `browser-tests/guided-recall.browser.js`: Chromium end-to-end acceptance for a gateway-connected route, refresh persistence, and backup round-trip.
 - `vite.config.js`: Vite configuration.
