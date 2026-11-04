@@ -85,7 +85,7 @@ Recruitment wording, consent, eligibility screening, incentive arrangements (if 
 
 ### Prior familiarity
 
-Before study allocation and learning, participants rate their familiarity with the topic or each item using the fixed scale included in the study materials. Do not administer a baseline recall test for the target answers: such a test could itself provide retrieval practice. The familiarity measure is descriptive and may be used in a prespecified sensitivity description, not to remove participants after outcomes are known.
+Before study allocation and learning, participants rate their general familiarity with the selected topic using a fixed scale. Do not show the 18 target prompts for an item-by-item familiarity rating and do not administer a baseline recall test: either could expose retrieval cues and create additional practice. The topic-level familiarity measure is descriptive and may be used in a prespecified sensitivity description, not to remove participants after outcomes are known.
 
 ## 5. Study materials and item-bank lock
 
@@ -164,7 +164,7 @@ The three outcome forms are non-overlapping for each participant. No participant
 
 **7-day objective recall percentage** on the six items assigned to the 7-day window:
 
-`100 × (total awarded semantic-unit points ÷ total available semantic-unit points)`
+`100 × (sum of the six adjudicated item scores ÷ 6)`
 
 This is the primary learning outcome for the feasibility pilot. Report its distribution and uncertainty by randomized arm.
 
@@ -183,15 +183,13 @@ Session count, time in the app, route completion, and confidence are process or 
 
 ## 9. Scoring procedure
 
-Each item must have a frozen answer key divided into explicit semantic units before the first participant is enrolled.
-
-Use a fixed item rubric:
+Each item must have a frozen answer key divided into explicit semantic units before the first participant is enrolled. Each item receives one score from the fixed rubric:
 
 - **0:** no required semantic unit is correctly recalled.
-- **0.5:** some, but not all, required semantic content is correctly recalled, with no critical contradiction.
-- **1:** all required semantic content is correctly recalled without a material contradiction.
+- **0.5:** at least one, but not all, required semantic units are correctly recalled, with no critical contradiction.
+- **1:** all required semantic units are correctly recalled without a material contradiction.
 
-Where an item has multiple independent semantic units, the item-specific answer key must define how the 0 / 0.5 / 1 categories apply. Do not create scoring criteria after seeing a participant's response.
+Where an item has multiple independent semantic units, the item-specific answer key must define the exact boundary between 0, 0.5, and 1 before recruitment. The six-item form score is the mean of its six adjudicated item scores; multiply by 100 to express it as a percentage. Do not create scoring criteria after seeing a participant's response.
 
 Two reviewers should independently score de-identified short answers while blinded to study arm and assessment timepoint. Resolve disagreements by a preselected adjudication rule and record both original scores and the adjudicated score. Report the proportion of exact agreement and a suitable agreement statistic; do not hide disagreement by storing only the final score.
 
@@ -322,7 +320,7 @@ Use one participant-level record and one outcome-item record per scheduled asses
 | `rater_1_score` | Outcome item | Blinded score |
 | `rater_2_score` | Outcome item | Blinded score |
 | `adjudicated_score` | Outcome item | Final score under the frozen rubric |
-| `maximum_score` | Outcome item | Maximum available semantic-unit points |
+| `maximum_score` | Outcome item | Maximum item score (1.0) |
 | `extra_exposure` | Outcome item | Reported study / discussion / outside exposure |
 | `assessment_status` | Outcome item | Completed / late / missing / withdrawn |
 | `deviation_code` | Outcome item | Prespecified deviation reason or blank |
