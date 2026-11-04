@@ -48,15 +48,32 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
   try {
     await waitForServer(server, APP_URL);
     browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({ acceptDownloads: true });
+    const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 390, height: 844 } });
     const page = await context.newPage();
 
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(APP_URL);
     await page.getByRole('button', { name: 'Explore the sample' }).click();
     await page.getByRole('button', { name: 'Guided Recall routes' }).click();
-    await page.getByRole('button', { name: 'Create route' }).click();
+    const managerHeading = page.getByRole('heading', { name: 'Guided Recall routes' });
+    await managerHeading.waitFor();
+    assert.equal(
+      await managerHeading.evaluate((element) => element === document.activeElement),
+      true,
+      'Opening Guided Recall should move focus to its heading.',
+    );
 
-    await page.getByLabel('Route name').fill('Browser integration route');
+    const createRouteButton = page.getByRole('button', { name: 'Create route' });
+    await createRouteButton.focus();
+    await page.keyboard.press('Enter');
+    const routeNameField = page.getByRole('textbox', { name: 'Route name' });
+    await routeNameField.waitFor();
+    assert.equal(
+      await routeNameField.evaluate((element) => element === document.activeElement),
+      true,
+      'Opening the route editor should focus the route-name field.',
+    );
+    await routeNameField.fill('Browser integration route');
     await addRouteStep(page, /Recall · The Grand Library \/ Philosophy of Loci/);
     await addRouteStep(page, /Gateway · The Grand Library/);
     await addRouteStep(page, /Recall · The Oak Desk \/ Draft Paper/);
@@ -65,18 +82,109 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     await page.getByText('2 recall stops · 1 gateways').waitFor();
     assert.equal(await page.getByText('Browser integration route').count() > 0, true);
 
-    // Start the runner and verify that the saved answer is absent before reveal.
+    // Start the runner and verify focus, accessible answer hiding, mobile layout and keyboard operation.
     await page.getByRole('button', { name: 'Start recall' }).click();
-    await page.getByText('Philosophy of Loci', { exact: true }).waitFor();
-    assert.equal(await page.getByText('The method of loci is a strategy for memory enhancement', { exact: false }).count(), 0);
+    const firstCue = page.getByRole('heading', { name: 'Philosophy of Loci', exact: true });
+    await firstCue.waitFor();
+    assert.equal(
+      await firstCue.evaluate((element) => element === document.activeElement),
+      true,
+      'Starting a recall step should focus the cue heading.',
+    );
+    const answerText = 'The method of loci is a strategy for memory enhancement';
+    assert.equal(await page.getByText(answerText, { exact: false }).count(), 0);
+    const answerInAccessibleLabels = await page.locator('[aria-label], [aria-description], [title]').evaluateAll(
+      (elements) => elements.some((element) => [
+        element.getAttribute('aria-label'),
+        element.getAttribute('aria-description'),
+        element.getAttribute('title'),
+      ].some((value) => value?.includes('The method of loci is a strategy for memory enhancement'))),
+    );
+    assert.equal(answerInAccessibleLabels, false, 'The hidden answer must not leak through accessible labels.');
 
-    await page.getByRole('button', { name: "I've attempted recall" }).click();
-    await page.getByRole('radio', { name: 'Low' }).check();
-    await page.getByRole('button', { name: 'Reveal answer' }).click();
-    await page.getByText('The method of loci is a strategy for memory enhancement', { exact: false }).waitFor();
-    await page.getByRole('button', { name: 'Correct', exact: true }).click();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    const dialogMetrics = await page.locator('[role="dialog"]').evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    assert.ok(dialogMetrics.scrollWidth <= dialogMetrics.clientWidth, 'The mobile dialog must not overflow horizontally.');
+    for (const actionName of ['Exit to routes', 'Abandon']) {
+      const bounds = await page.getByRole('button', { name: actionName }).boundingBox();
+      assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 390, `${actionName} must remain within the mobile viewport.`);
+    }
+
+    const progress = page.getByRole('progressbar', { name: 'Session progress' });
+    await progress.waitFor();
+    const progressTransition = await progress.evaluate((element) => getComputedStyle(element.firstElementChild).transitionDuration);
+    assert.equal(progressTransition, '0s', 'Progress animation must be disabled when reduced motion is requested.');
+
+    // From the focused cue, Tab reaches the transient response and then the recall action.
+    await page.keyboard.press('Tab');
+    const responseField = page.getByRole('textbox', { name: 'Your recalled answer (optional; not saved)' });
+    assert.equal(
+      await responseField.evaluate((element) => element === document.activeElement),
+      true,
+      'Tab from the cue should reach the optional response field.',
+    );
+    await page.keyboard.press('Tab');
+    const attemptedButton = page.getByRole('button', { name: "I've attempted recall" });
+    assert.equal(
+      await attemptedButton.evaluate((element) => element === document.activeElement),
+      true,
+      'The recall attempt action should be reachable by Tab.',
+    );
+    await page.keyboard.press('Enter');
+    const lowConfidence = page.getByRole('radio', { name: 'Low' });
+    await lowConfidence.waitFor();
+    assert.equal(
+      await lowConfidence.evaluate((element) => element === document.activeElement),
+      true,
+      'After attempting recall, focus should move to the confidence options.',
+    );
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Tab');
+    const skipConfidence = page.getByRole('button', { name: 'Skip confidence rating' });
+    assert.equal(
+      await skipConfidence.evaluate((element) => element === document.activeElement),
+      true,
+      'The confidence-skip control should be keyboard reachable.',
+    );
+    await page.keyboard.press('Tab');
+    const revealButton = page.getByRole('button', { name: 'Reveal answer' });
+    assert.equal(
+      await revealButton.evaluate((element) => element === document.activeElement),
+      true,
+      'The reveal action should follow the confidence controls in the tab order.',
+    );
+    await page.keyboard.press('Enter');
+    const answerHeading = page.getByRole('heading', { name: 'SAVED NOTE CONTENT' });
+    await answerHeading.waitFor();
+    assert.equal(
+      await answerHeading.evaluate((element) => element === document.activeElement),
+      true,
+      'Revealing the answer should move focus to the answer heading.',
+    );
+    await page.keyboard.press('Tab');
+    const correctButton = page.getByRole('button', { name: 'Correct', exact: true });
+    assert.equal(
+      await correctButton.evaluate((element) => element === document.activeElement),
+      true,
+      'The first self-grade should be keyboard reachable.',
+    );
+    await page.keyboard.press('Enter');
+    const continueButton = page.getByRole('button', { name: 'Continue' });
+    await continueButton.waitFor();
+    assert.equal(
+      await continueButton.evaluate((element) => element === document.activeElement),
+      true,
+      'After grading, focus should move to Continue.',
+    );
+    await page.keyboard.press('Enter');
     await page.getByText('Enter gateway to The Oak Desk').waitFor();
+    assert.equal(
+      await page.getByRole('heading', { name: 'Gateway to Study Desk' }).evaluate((element) => element === document.activeElement),
+      true,
+      'Entering a gateway step should focus its navigation cue.',
+    );
 
     // Exit without abandoning; the saved session must be resumable after a reload.
     await page.getByRole('button', { name: 'Exit to routes' }).click();
@@ -97,7 +205,18 @@ test('create a gateway-connected recall route, persist it, and export it in a ba
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByText('Session completed', { exact: true }).waitFor();
     await page.getByText('50%', { exact: true }).waitFor();
+    const resultHeading = page.getByRole('heading', { name: 'Session completed' });
+    assert.equal(
+      await resultHeading.evaluate((element) => element === document.activeElement),
+      true,
+      'Completing the session should focus the result heading.',
+    );
     await page.getByRole('button', { name: 'Return to routes' }).click();
+    assert.equal(
+      await page.locator('#guided-recall-dialog-title').evaluate((element) => element === document.activeElement),
+      true,
+      'Exiting the runner should restore focus to the route manager heading.',
+    );
     await page.getByRole('button', { name: 'Show learning analytics' }).click();
     await page.getByRole('heading', { name: 'Learning analytics' }).waitFor();
     await page.getByRole('heading', { name: 'Session history' }).waitFor();
