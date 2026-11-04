@@ -167,14 +167,17 @@ test('frequently-missed calculations keep identical marker IDs in different pala
   }];
   const sessions = Array.from({ length: 3 }, (_, index) => {
     const sessionId = 'lab-' + index;
-    const attempt = makeAttempt(
+    const attempt = {
+      ...makeAttempt(
       'lab-attempt-' + index,
       sessionId,
       'note-1',
       'missed',
       'high',
       new Date(Date.parse(now) - ((index + 1) * 86_400_000)).toISOString(),
-    );
+      ),
+      palaceId: 'lab',
+    };
     return makeSession(sessionId, 'route-lab', 'completed', attempt.attemptedAt, [attempt], {
       routeNameSnapshot: 'Lab route',
       locationSnapshots: [{
