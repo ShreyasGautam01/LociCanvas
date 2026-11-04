@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -52,6 +52,10 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
   const [formError, setFormError] = useState('');
   const [activeSession, setActiveSession] = useState(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const managerHeadingRef = useRef(null);
+  const routeNameFieldRef = useRef(null);
+  const returnedFromSessionRef = useRef(false);
+  const isEditingDraft = Boolean(draft);
 
   const routes = Array.isArray(recallData?.routes) ? recallData.routes : EMPTY_ROUTES;
   const sessions = Array.isArray(recallData?.sessions) ? recallData.sessions : EMPTY_ROUTES;
@@ -64,6 +68,25 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
     () => new Map(routes.map((route) => [route.id, getRouteValidation(route, palaces)])),
     [routes, palaces],
   );
+
+  useEffect(() => {
+    managerHeadingRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (isEditingDraft) routeNameFieldRef.current?.focus();
+  }, [isEditingDraft]);
+
+  useEffect(() => {
+    if (activeSession) {
+      returnedFromSessionRef.current = true;
+      return;
+    }
+    if (returnedFromSessionRef.current) {
+      returnedFromSessionRef.current = false;
+      managerHeadingRef.current?.focus();
+    }
+  }, [activeSession]);
 
   const availableSteps = useMemo(() => {
     if (!draft) return [];
@@ -287,18 +310,33 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, color: 'text.primary' }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        justifyContent="space-between"
+        spacing={2}
+        sx={{ mb: 2 }}
+      >
         <Box>
-          <Typography variant="h5" fontWeight={700}>Guided Recall routes</Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            ref={managerHeadingRef}
+            id="guided-recall-dialog-title"
+            component="h1"
+            tabIndex={-1}
+            variant="h5"
+            fontWeight={700}
+          >
+            Guided Recall routes
+          </Typography>
+          <Typography id="guided-recall-dialog-description" variant="body2" color="text.secondary">
             Build a navigable path through existing memory and gateway markers.
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1}>
-          <Button variant={showAnalytics ? "contained" : "outlined"} onClick={() => setShowAnalytics((current) => !current)}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <Button sx={{ minHeight: 44 }} variant={showAnalytics ? "contained" : "outlined"} onClick={() => setShowAnalytics((current) => !current)}>
             {showAnalytics ? "Hide learning analytics" : "Show learning analytics"}
           </Button>
-          <Button onClick={onClose} color="inherit">Close</Button>
+          <Button sx={{ minHeight: 44 }} onClick={onClose} color="inherit">Close</Button>
         </Stack>
       </Stack>
 
@@ -359,10 +397,10 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
                         <Chip size="small" color={validation?.valid ? 'success' : 'warning'} label={validation?.valid ? 'Ready' : 'Needs repair'} />
                       </Box>
                     </Box>
-                    <IconButton aria-label={'Edit ' + route.name} size="small" onClick={() => editRoute(route)}>
+                    <IconButton aria-label={'Edit ' + route.name} size="small" sx={{ minWidth: 44, minHeight: 44 }} onClick={() => editRoute(route)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton aria-label={'Delete ' + route.name} size="small" color="error" onClick={() => deleteRoute(route)}>
+                    <IconButton aria-label={'Delete ' + route.name} size="small" color="error" sx={{ minWidth: 44, minHeight: 44 }} onClick={() => deleteRoute(route)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Stack>
@@ -377,6 +415,7 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
             <Stack spacing={2}>
               <Typography variant="h6" fontWeight={700}>{selectedRouteId ? 'Edit route' : 'Create route'}</Typography>
               <TextField
+                inputRef={routeNameFieldRef}
                 label="Route name"
                 value={draft.name}
                 onChange={(event) => updateDraft({ name: event.target.value })}
