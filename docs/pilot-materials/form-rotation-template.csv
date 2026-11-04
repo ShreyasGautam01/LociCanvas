@@ -1,0 +1,4 @@
+schedule_id,immediate_form,twenty_four_hour_form,seven_day_form,target_participants_per_arm,notes
+SCHEDULE-1,A,B,C,5,"Protocol v1 rotation; each item appears at one timepoint per participant"
+SCHEDULE-2,B,C,A,5,"Protocol v1 rotation; each item appears at one timepoint per participant"
+SCHEDULE-3,C,A,B,5,"Protocol v1 rotation; each item appears at one timepoint per participant"
