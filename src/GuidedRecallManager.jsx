@@ -26,6 +26,7 @@ import { createStableId } from './domain/palaceModel.js';
 import { createRecallSessionSnapshot, validateRecallRoute } from './domain/recallModel.js';
 import { upsertRecallSession } from './domain/recallStorage.js';
 import GuidedRecallRunner from './GuidedRecallRunner.jsx';
+import RecallAnalyticsPanel from './RecallAnalyticsPanel.jsx';
 
 const EMPTY_ROUTES = Object.freeze([]);
 
@@ -49,6 +50,7 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
   const [stepSelection, setStepSelection] = useState('');
   const [formError, setFormError] = useState('');
   const [activeSession, setActiveSession] = useState(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const routes = Array.isArray(recallData?.routes) ? recallData.routes : EMPTY_ROUTES;
   const sessions = Array.isArray(recallData?.sessions) ? recallData.sessions : EMPTY_ROUTES;
@@ -267,7 +269,12 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
             Build a navigable path through existing memory and gateway markers.
           </Typography>
         </Box>
-        <Button onClick={onClose} color="inherit">Close</Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant={showAnalytics ? "contained" : "outlined"} onClick={() => setShowAnalytics((current) => !current)}>
+            {showAnalytics ? "Hide learning analytics" : "Show learning analytics"}
+          </Button>
+          <Button onClick={onClose} color="inherit">Close</Button>
+        </Stack>
       </Stack>
 
       <Alert severity="info" sx={{ mb: 2 }}>
@@ -487,6 +494,7 @@ export default function GuidedRecallManager({ palaces, recallData, onSave, onClo
           )}
         </Paper>
       </Box>
+      {showAnalytics && <RecallAnalyticsPanel recallData={recallData} palaces={palaces} />}
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
         Routes, active session snapshots, and self-reported attempts are saved locally. Session summaries are shown when a run is completed.
       </Typography>

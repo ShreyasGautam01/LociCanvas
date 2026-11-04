@@ -326,6 +326,14 @@ V1 MUST provide:
 
 V1 SHOULD include a filter for the last 7 / 30 / 60 days, but the default weakness algorithm remains 5 exposures in 60 days. A route with insufficient attempt history must say so rather than showing a misleading rank.
 
+### Analytics implementation semantics
+
+- Session-level grade counts and scores are derived from the persisted attempts nested in each session snapshot. The flat `recallData.attempts` collection is a redundant index and MUST NOT be counted in addition to nested attempts.
+- The 7 / 30 / 60 day and all-time filter applies to session and item history. The frequently-missed calculation remains fixed to the latest 5 eligible exposures in 60 days, with at least 3 distinct sessions and the 50% weighted-miss threshold.
+- Item identity for reports is the combination of palace ID, marker ID, and content fingerprint. Identical marker IDs in different palaces MUST NOT share a history bucket.
+- Earlier note revisions remain visible in item history but MUST NOT contribute to the current revision's frequently-missed indicator.
+- High-confidence missed attempts MAY be surfaced as a separate observation and MUST NOT alter the grade weight or weak-item calculation.
+
 ## 8. Accessibility, resilience, and interaction quality
 
 - All route editor and runner actions MUST be keyboard-operable, with visible focus and semantic labels.

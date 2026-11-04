@@ -68,7 +68,7 @@ Acceptance:
 
 ## PR 3 — Guided runner and persistent sessions
 
-**Implementation slice:** PR #8, branch `feat/guided-recall-runner` (open for review).
+**Implementation slice:** PR #8, branch `feat/guided-recall-runner` (merged into `main`).
 
 **Goal:** a complete recall session works end-to-end.
 
@@ -92,22 +92,28 @@ Acceptance:
 
 ## PR 4 — Session history and weakness analytics
 
+**Implementation slice:** PR #9, branch `feat/recall-session-analytics` (implementation complete; CI/review pending).
+
 **Goal:** expose useful evidence about recall without overclaiming.
 
 Deliverables:
-- Session result summary.
-- Route history.
-- Per-item revision history.
-- Frequently missed view using the specified algorithm.
-- Confidence/missed observations as a separate signal.
+- [x] Session history and expandable per-session grade details.
+- [x] Route history grouped by route, with dated session scores.
+- [x] Per-item revision history separating fingerprints.
+- [x] Frequently missed view using the specified 5-exposure / 60-day / 3-sample / 50% algorithm.
+- [x] High-confidence missed observations displayed separately from the weakness score.
+- [x] Read-only analytics projection; nested session attempts are authoritative and the flat attempt array is not double-counted.
+- [x] 7 / 30 / 60 day and all-time history filters.
+- [x] Palace-scoped note identity so equal marker IDs in different environments do not contaminate each other.
 
 Acceptance:
-- [ ] Every score is derived from attempt records.
-- [ ] Gateway steps do not enter the score denominator.
-- [ ] The weak-item view shows sample count, lookback window, and recent grades.
-- [ ] Fewer than three eligible exposures displays Not enough history.
-- [ ] Edited note content starts a new revision bucket.
-- [ ] UI labels results as self-reported.
+- [x] Every score is derived from saved attempt records.
+- [x] Gateway steps do not enter the score denominator.
+- [x] The weak-item view shows sample count, lookback window, and recent grade counts.
+- [x] Fewer than three eligible exposures remains Not enough history.
+- [x] Edited note content starts a new revision bucket.
+- [x] UI labels results as self-reported and explicitly disclaims objective mastery / delayed-retention claims.
+- [ ] CI domain, lint, production build, and browser acceptance gates pass.
 
 ## PR 5 — Review queue and adaptive replay (after pilot feedback)
 
@@ -143,12 +149,22 @@ Acceptance:
 - [ ] Session resume and storage errors are tested in a browser.
 - [ ] Evaluation reports delayed recall and sample size, not engagement alone.
 
+### PR #9 verification scope
+
+- Analytics are derived from nested saved session attempts, de-duplicated by attempt ID; a stale/orphan flat index cannot inflate results.
+- Session and route history use the selected 7 / 30 / 60 day or all-time window; the weakness algorithm remains fixed at 5 exposures / 60 days / 3 minimum / 50% threshold.
+- Item history separates exact content fingerprints and marks only the live note revision as current.
+- Weakness calculations scope by palace ID and marker ID, preventing collisions across environments.
+- High-confidence misses are separately shown and do not change the underlying miss-rate calculation.
+- Browser acceptance opens analytics after a completed gateway-connected route and verifies route history plus its self-reported score.
+
 ### PR #8 verification scope
 
 - Session snapshots preserve prompt/answer revisions and stable locus metadata without duplicating background image bytes.
 - Session updates persist both the resumable session and a flat attempt index for later analytics.
 - The browser acceptance test verifies that answers remain absent before explicit reveal, confidence is addressed before reveal, self-grades are persisted, gateway navigation is explicit, and a session resumes after refresh.
 - Session summaries show self-reported grade counts and exclude skipped stops and gateway navigation from the score.
+- PR #8 was merged into `main` on 2026-11-04.
 
 ### PR #7 verification scope
 
