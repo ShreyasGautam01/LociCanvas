@@ -14,6 +14,7 @@ import {
   Select,
   Stack,
   Typography,
+  Button,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { deriveRecallAnalytics } from './domain/recallAnalytics.js';
@@ -56,7 +57,7 @@ function Stat({ label, value, helper }) {
   );
 }
 
-export default function RecallAnalyticsPanel({ recallData, palaces }) {
+export default function RecallAnalyticsPanel({ recallData, palaces, onReviewNote, reviewError = '' }) {
   const [windowValue, setWindowValue] = useState(30);
   const analytics = useMemo(() => deriveRecallAnalytics(
     recallData,
@@ -163,6 +164,10 @@ export default function RecallAnalyticsPanel({ recallData, palaces }) {
       <Typography variant="caption" color="text.secondary">
         Current note revision only. Uses the latest 5 scored exposures in 60 days; at least 3 are required, with missed = 1 and partial = 0.5.
       </Typography>
+      <Alert severity="info" sx={{ mt: 1 }}>
+        Manual review only: choose a note to practise again at its original locus. This list does not assign due dates or infer an optimal review interval.
+      </Alert>
+      {reviewError && <Alert severity="error" sx={{ mt: 1 }}>{reviewError}</Alert>}
       {analytics.frequentlyMissedItems.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>No current note revisions have scored exposures in the last 60 days.</Typography>
       ) : (
@@ -186,6 +191,17 @@ export default function RecallAnalyticsPanel({ recallData, palaces }) {
               <Typography variant="caption" color="text.secondary">
                 60-day lookback · 3-exposure minimum · {gradeSummary(item.counts)}
               </Typography>
+              <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => onReviewNote?.(item)}
+                  disabled={!onReviewNote}
+                  aria-label={'Review ' + item.title}
+                >
+                  Review at original locus
+                </Button>
+              </Stack>
             </Paper>
           ))}
         </Stack>
