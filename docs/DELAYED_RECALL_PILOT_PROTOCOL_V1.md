@@ -121,7 +121,7 @@ The outcome scorer should receive de-identified responses with participant arm a
 3. Record the item-bank version, protocol version, device/browser, date, and start time.
 4. Record the participant's pre-study familiarity rating.
 5. Assign the study arm and one of the three form schedules.
-6. Explain that the later tests measure unaided recall, that no feedback will be provided until all scheduled measurements are finished, and that participants should not study the pilot content between sessions.
+6. Explain that the later outcome tests measure unaided recall and that no correctness feedback will be given on those outcome tests until all scheduled measurements are finished. The Guided Recall arm still receives the normal answer reveal during its Day-0 learning session. Ask participants not to study the pilot content between sessions.
 
 ### Guided Recall condition
 
@@ -191,7 +191,7 @@ Each item must have a frozen answer key divided into explicit semantic units bef
 
 Where an item has multiple independent semantic units, the item-specific answer key must define the exact boundary between 0, 0.5, and 1 before recruitment. The six-item form score is the mean of its six adjudicated item scores; multiply by 100 to express it as a percentage. Do not create scoring criteria after seeing a participant's response.
 
-Two reviewers should independently score de-identified short answers while blinded to study arm and assessment timepoint. Resolve disagreements by a preselected adjudication rule and record both original scores and the adjudicated score. Report the proportion of exact agreement and a suitable agreement statistic; do not hide disagreement by storing only the final score.
+Two reviewers should independently score de-identified short answers while blinded to study arm and assessment timepoint. Resolve disagreements by a preselected adjudication rule and record both original scores and the adjudicated score. Report the proportion of exact agreement and linearly weighted Cohen's kappa for the three ordered score categories; do not hide disagreement by storing only the final score.
 
 Scoring must accept clearly equivalent wording while rejecting unsupported or contradictory claims. Do not use an LLM or automated semantic grader in this pilot.
 
