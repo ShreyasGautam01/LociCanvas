@@ -79,7 +79,7 @@ export default function RecallAnalyticsPanel({ recallData, palaces }) {
             labelId="analytics-window-label"
             label="History window"
             value={windowValue}
-            onChange={(event) => setWindowValue(event.target.value)}
+            onChange={(event) => setWindowValue(event.target.value === 'all' ? 'all' : Number(event.target.value))}
           >
             {WINDOWS.map((window) => (
               <MenuItem key={String(window.value)} value={window.value}>{window.label}</MenuItem>
