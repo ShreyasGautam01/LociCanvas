@@ -80,7 +80,7 @@ test('derives session and route history from saved session records', () => {
   assert.equal(analytics.sessions[1].scorePercent, 0);
   assert.deepEqual(analytics.routeHistory.map((route) => route.routeId), ['route-1', 'route-2']);
   assert.equal(analytics.highConfidenceMisses.length, 1);
-  assert.equal(analytics.highConfidenceMisses[0].attemptId, undefined);
+  assert.equal(analytics.highConfidenceMisses[0].id, 'a2');
 });
 
 test('keeps current and previous note revisions separate', () => {
@@ -156,4 +156,41 @@ test('time windows filter history while all-time includes past attempts', () => 
 
 test('rejects unknown time windows', () => {
   assert.throws(() => deriveRecallAnalytics({}, palaces, { now, lookbackDays: 14 }), /window must be/);
+});
+
+
+test('frequently-missed calculations keep identical marker IDs in different palaces separate', () => {
+  const lab = [{
+    id: 'lab',
+    name: 'Laboratory',
+    items: [{ id: 'note-1', type: 'note', title: 'Neuron', content: 'A nerve cell.' }],
+  }];
+  const sessions = Array.from({ length: 3 }, (_, index) => {
+    const sessionId = 'lab-' + index;
+    const attempt = makeAttempt(
+      'lab-attempt-' + index,
+      sessionId,
+      'note-1',
+      'missed',
+      'high',
+      new Date(Date.parse(now) - ((index + 1) * 86_400_000)).toISOString(),
+    );
+    return makeSession(sessionId, 'route-lab', 'completed', attempt.attemptedAt, [attempt], {
+      routeNameSnapshot: 'Lab route',
+      locationSnapshots: [{
+        routeStepId: attempt.routeStepId,
+        kind: 'recall',
+        palaceId: 'lab',
+        palaceNameSnapshot: 'Laboratory',
+        markerId: 'note-1',
+        markerTitleSnapshot: 'Neuron',
+        markerXSnapshot: 50,
+        markerYSnapshot: 50,
+      }],
+    });
+  });
+  const analytics = deriveRecallAnalytics({ sessions }, [...palaces, ...lab], { now, lookbackDays: 60 });
+  assert.equal(analytics.frequentlyMissedItems.length, 1);
+  assert.equal(analytics.frequentlyMissedItems[0].palaceId, 'lab');
+  assert.equal(analytics.frequentlyMissedItems[0].status, 'frequently_missed');
 });
