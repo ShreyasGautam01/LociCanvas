@@ -98,7 +98,7 @@ export default function RecallAnalyticsPanel({ recallData, palaces }) {
       <Divider sx={{ my: 2.5 }} />
       <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>Session history</Typography>
       {analytics.sessions.length === 0 ? (
-        <Alert severity="info">No sessions are recorded in this time window. Complete or abandon a guided session to begin building history.</Alert>
+        <Alert severity="info">No sessions are recorded in this time window. Start a guided session to begin building history; completed and abandoned sessions retain their full attempt records.</Alert>
       ) : (
         <Stack spacing={1}>
           {analytics.sessions.map((session) => (
