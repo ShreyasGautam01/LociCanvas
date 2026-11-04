@@ -157,7 +157,7 @@ Acceptance before implementation:
 
 ## PR 6 — Accessibility and mobile hardening
 
-**Implementation slice:** PR #11, branch `feat/guided-recall-accessibility`.
+**Implementation slice:** PR #11, branch `feat/guided-recall-accessibility` (merged into `main` on 2026-11-04; all GitHub Actions checks passed).
 
 Deliverables:
 - Keyboard-operable route creation and recall flow with explicit focus movement.
@@ -184,11 +184,41 @@ Do not add automatic due dates or adaptive scheduling as part of this accessibil
 
 ### PR #11 verification scope
 
+- Merged into `main` as `fb596b0c79807b3bec81fae9644e031164e21074` on 2026-11-04.
+- GitHub Actions run #40 passed domain tests, lint, production build, Chromium browser acceptance, and PostgreSQL migration/RLS checks; Vercel preview deployment was Ready.
 - The route manager and runner expose named dialog/heading/field/group/progress semantics.
 - Focus is moved to new recall cues, answer reveal, confidence choices, Continue, gateway cues, and completed-session results; returning from a runner restores focus to the route manager.
 - The browser acceptance test uses a 390 × 844 viewport and reduced-motion emulation, verifies keyboard operation through the first recall step, checks accessible-label answer hiding, and asserts no horizontal dialog overflow.
 - Framer Motion follows the user's `prefers-reduced-motion` setting; the session progress bar has no transition when reduced motion is requested.
-- Manual screen-reader/device verification remains explicitly outstanding.
+- Manual keyboard audit, NVDA/VoiceOver/TalkBack verification, broken-route repair UI, and storage-quota browser coverage remain outstanding.
+
+## PR 7 — Delayed-recall feasibility protocol (documentation only)
+
+**Implementation slice:** PR #12, branch `docs/delayed-recall-pilot-protocol`.
+
+**Goal:** predeclare how an opt-in, independently scored delayed-recall feasibility pilot could be conducted before building any adaptive scheduling.
+
+Deliverables:
+- [x] Define the feasibility question, two-arm study-package comparison, proposed adult participant target, allocation, and form rotation.
+- [x] Define separate immediate, 24-hour, and 7-day assessment item sets so outcome testing does not reuse the same test item at later windows.
+- [x] Separate objective outcome scoring from app self-grades and confidence.
+- [x] Specify missing-data, deviations, feasibility thresholds, analysis, local-data handling, and governance gates.
+- [x] Record the limitations: the pilot is not powered for efficacy and cannot isolate the Method of Loci from retrieval/feedback.
+- [ ] Supervisor and required institutional ethics review approve the protocol and consent materials.
+- [ ] The 18-item bank, answer keys, parallel forms, and scoring rubric are reviewed and version-locked.
+- [ ] The starter backup, comparator materials, allocation procedure, follow-up workflow, and data handling are rehearsed in a dry-run.
+- [ ] The approved protocol and analysis plan are time-stamped before recruitment.
+- [ ] Pilot is conducted and reports recruitment, missing follow-ups, sample size, uncertainty, and objective delayed outcomes.
+
+**Important:** merging this documentation PR does not authorize recruitment or represent that a study has been conducted. No app telemetry, storage schema, API, Supabase, or scheduling implementation is included.
+
+### PR #12 verification scope
+
+- The protocol is a study plan only; no participant records or data are included in the repository.
+- The primary learning measure is independently administered 7-day objective recall, not the app's self-reported session score.
+- The proposed 30-person target is for feasibility and is explicitly not an efficacy-powered sample.
+- The active comparator estimates the combined Guided Recall package against conventional study; it does not isolate individual mechanisms.
+- Automated scheduling remains gated on full research-report reconciliation and subsequent evidence.
 
 ## PR #10 verification scope
 
